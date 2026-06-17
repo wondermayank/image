@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BMP to PNG Converter | Wondermayank</title>
+<meta name="description" content="Convert BMP to PNG Converter instantly in your browser. Paste, drag, or upload. No server, no signup.">
+<link rel="icon" type="image/svg+xml" href="https://wondermayank.github.io/favicon.svg">
+<style>
+  :root{--primary:#573AFC;--primary-active:#4527E0;--ink:#1d1d1f;--body:#3c3c3c;--muted:#6b6b6b;--muted-soft:#9a9a9a;--hairline:#e6e6e6;--hairline-strong:#cccccc;--canvas:#ffffff;--canvas-parchment:#f5f5f7;--on-primary:#ffffff;}
+  [data-theme="dark"]{--ink:#f5f5f7;--body:#d1d1d6;--muted:#8e8e93;--muted-soft:#636366;--hairline:#2c2c2e;--hairline-strong:#3a3a3c;--canvas:#0e0e10;--canvas-parchment:#161618;--primary:#9A7AFB;--primary-active:#7C5CF0;}
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--canvas-parchment);color:var(--ink);min-height:100vh;display:flex;flex-direction:column;align-items:center;transition:background .2s,color .2s;}
+  header{width:100%;max-width:680px;padding:28px 20px 8px;display:flex;align-items:center;justify-content:space-between;}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:-0.1px;}
+  .brand img{width:26px;height:26px;border-radius:6px;}
+  .theme-toggle{width:40px;height:40px;border-radius:9999px;border:1px solid var(--hairline-strong);background:var(--canvas);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .theme-toggle svg{width:18px;height:18px;stroke:var(--ink);}
+  main{width:100%;max-width:680px;padding:24px 20px 60px;flex:1;display:flex;flex-direction:column;align-items:center;}
+  h1{font-size:28px;font-weight:700;letter-spacing:-0.2px;margin:10px 0 6px;text-align:center;}
+  p.lead{font-size:16px;font-weight:400;color:var(--muted);text-align:center;margin:0 0 28px;max-width:480px;}
+  .dropzone{width:100%;min-height:260px;border:2px dashed var(--hairline-strong);border-radius:18px;background:var(--canvas);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;padding:32px 20px;transition:border-color .15s,background .15s,transform .1s;}
+  .dropzone:active{transform:scale(0.99);}
+  .dropzone.drag-over{border-color:var(--primary);background:color-mix(in srgb, var(--primary) 6%, var(--canvas));}
+  .dropzone svg{width:42px;height:42px;stroke:var(--primary);margin-bottom:14px;}
+  .dz-title{font-size:17px;font-weight:600;margin:0 0 6px;}
+  .dz-sub{font-size:14px;color:var(--muted);margin:0;line-height:1.5;}
+  .dz-sub kbd{font-family:inherit;background:var(--canvas-parchment);border:1px solid var(--hairline-strong);border-radius:5px;padding:1px 6px;font-size:13px;}
+  input[type="file"]{display:none;}
+  .error-msg{display:none;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:11px;padding:14px 16px;font-size:14px;margin-top:16px;width:100%;line-height:1.5;}
+  [data-theme="dark"] .error-msg{background:#2a1414;border-color:#5c2323;color:#fca5a5;}
+  .error-msg.show{display:block;}
+  .info-msg{display:none;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:11px;padding:14px 16px;font-size:14px;margin-top:16px;width:100%;line-height:1.5;}
+  [data-theme="dark"] .info-msg{background:#172035;border-color:#1e3a5f;color:#93c5fd;}
+  .info-msg.show{display:block;}
+  .preview-card{width:100%;margin-top:24px;background:var(--canvas);border:1px solid var(--hairline);border-radius:18px;padding:20px;display:none;}
+  .preview-card.show{display:block;}
+  .preview-img-wrap{width:100%;border-radius:11px;overflow:hidden;background:repeating-conic-gradient(#cccccc 0% 25%, var(--canvas-parchment) 0% 50%) 50% / 20px 20px;display:flex;align-items:center;justify-content:center;max-height:320px;}
+  .preview-img-wrap img{max-width:100%;max-height:320px;display:block;}
+  .preview-text{width:100%;border-radius:11px;overflow:auto;background:var(--canvas-parchment);border:1px solid var(--hairline);padding:12px;font-family:ui-monospace,monospace;font-size:12px;color:var(--body);max-height:180px;word-break:break-all;line-height:1.6;}
+  .file-meta{display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:14px;color:var(--muted);}
+  .file-meta strong{color:var(--ink);font-weight:600;}
+  .actions{display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;}
+  .btn{flex:1;min-width:140px;height:48px;border-radius:9999px;border:none;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s,background .15s;}
+  .btn:active{transform:scale(0.95);}
+  .btn-primary{background:var(--primary);color:var(--on-primary);}
+  .btn-primary:hover{background:var(--primary-active);}
+  .btn-secondary{background:var(--canvas);color:var(--ink);border:1px solid var(--hairline-strong);}
+  .btn svg{width:18px;height:18px;}
+  .progress-wrap{width:100%;height:6px;background:var(--hairline);border-radius:9999px;margin-top:16px;display:none;overflow:hidden;}
+  .progress-wrap.show{display:block;}
+  .progress-bar{height:100%;background:var(--primary);border-radius:9999px;width:0%;transition:width .3s ease;}
+  .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--canvas);padding:12px 20px;border-radius:9999px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  footer{width:100%;text-align:center;padding:18px;font-size:12px;color:var(--muted-soft);}
+  @media (max-width:480px){h1{font-size:23px;} .dropzone{min-height:220px;} .btn{min-width:0;}}
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><img src="https://wondermayank.github.io/favicon.svg" alt=""><span>BMP → PNG</span></div>
+  <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg></button>
+</header>
+
+<main>
+  <h1>BMP to PNG Converter</h1>
+  <p class="lead">Convert BMP bitmaps to compressed PNG — same quality, much smaller files.</p>
+
+  <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload or drop a file">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    <p class="dz-title">Drop your BMP here</p>
+    <p class="dz-sub">or click to browse &nbsp;·&nbsp; or press <kbd>Ctrl</kbd> + <kbd>V</kbd> to paste</p>
+  </div>
+  <input type="file" id="fileInput" accept="image/bmp,image/x-bmp,.bmp">
+
+  <div class="error-msg" id="errorMsg">Could not process this file. Make sure it's a valid bmp and try again.</div>
+  
+  
+
+  <div class="preview-card" id="previewCard">
+    
+    <div class="preview-img-wrap"><img id="previewImg" alt="Preview"></div>
+    
+    <div class="file-meta"><span id="fileName">output</span><strong id="fileSize">—</strong></div>
+    <div class="actions">
+      <button class="btn btn-secondary" id="clearBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Clear</button>
+      
+      <button class="btn btn-primary" id="downloadBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download</button>
+    </div>
+  </div>
+</main>
+
+<footer>© 2026 Thunder · by wondermayank</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  const dropzone=document.getElementById('dropzone'),fileInput=document.getElementById('fileInput'),previewCard=document.getElementById('previewCard'),fileNameEl=document.getElementById('fileName'),fileSizeEl=document.getElementById('fileSize'),downloadBtn=document.getElementById('downloadBtn'),clearBtn=document.getElementById('clearBtn'),toast=document.getElementById('toast'),themeToggle=document.getElementById('themeToggle'),themeIcon=document.getElementById('themeIcon'),errorMsg=document.getElementById('errorMsg');
+
+  const sunPath='<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.79"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+  const moonPath='<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  function applyTheme(t){document.documentElement.setAttribute('data-theme',t);themeIcon.innerHTML=t==='dark'?sunPath:moonPath;localStorage.setItem('theme',t);}
+  applyTheme(localStorage.getItem('theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
+  themeToggle.addEventListener('click',()=>applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark'));
+
+  function showToast(msg,dur=1800){toast.textContent=msg;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),dur);}
+  function formatBytes(b){if(b<1024)return b+' B';if(b<1024*1024)return (b/1024).toFixed(1)+' KB';return (b/(1024*1024)).toFixed(2)+' MB';}
+  function showError(msg){errorMsg.textContent=msg||errorMsg.textContent;errorMsg.classList.add('show');previewCard.classList.remove('show');}
+  function hideError(){errorMsg.classList.remove('show');}
+
+  dropzone.addEventListener('click',()=>fileInput.click());
+  dropzone.addEventListener('keydown',(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();fileInput.click();}});
+  fileInput.addEventListener('change',(e)=>{if(e.target.files&&e.target.files[0])processFile(e.target.files[0]);});
+  ['dragenter','dragover'].forEach(evt=>dropzone.addEventListener(evt,(e)=>{e.preventDefault();dropzone.classList.add('drag-over');}));
+  ['dragleave','drop'].forEach(evt=>dropzone.addEventListener(evt,(e)=>{e.preventDefault();dropzone.classList.remove('drag-over');}));
+  dropzone.addEventListener('drop',(e)=>{const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f)processFile(f);});
+  ['dragover','drop'].forEach(evt=>window.addEventListener(evt,(e)=>e.preventDefault()));
+  window.addEventListener('paste',(e)=>{const items=e.clipboardData&&e.clipboardData.items;if(!items)return;for(const item of items){if(item.type.indexOf('image')!==-1){processFile(item.getAsFile());break;}}});
+  clearBtn.addEventListener('click',()=>{previewCard.classList.remove('show');fileInput.value='';hideError();currentResult=null;});
+
+  let currentResult=null;
+
+  
+  function processFile(file){
+    if(!file||!file.type.startsWith('image/')){showError('Please select a BMP image.');return;}
+    hideError();
+    const name=(file.name||'image').replace(/\.[^/.]+$/,'');
+    const reader=new FileReader();
+    reader.onload=(e)=>{
+      const img=new Image();
+      img.onload=()=>{
+        const canvas=document.createElement('canvas');
+        canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+        canvas.getContext('2d').drawImage(img,0,0);
+        const dataUrl=canvas.toDataURL('image/png');
+        currentResult={dataUrl,name:name+'.png'};
+        document.getElementById('previewImg').src=dataUrl;
+        fileNameEl.textContent=name+'.png';
+        const bytes=Math.round((dataUrl.length-dataUrl.indexOf(',')-1)*0.75);
+        fileSizeEl.textContent='PNG ≈ '+formatBytes(bytes);
+        previewCard.classList.add('show');previewCard.scrollIntoView({behavior:'smooth',block:'nearest'});
+      };
+      img.onerror=()=>showError('Could not decode this BMP file.');
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+  downloadBtn.addEventListener('click',()=>{
+    if(!currentResult)return;
+    const a=document.createElement('a');a.href=currentResult.dataUrl;a.download=currentResult.name;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    showToast('Downloaded as PNG');
+  });
+
+
+})();
+</script>
+</body>
+</html>
