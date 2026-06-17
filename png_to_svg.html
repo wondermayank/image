@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PNG to SVG Converter — Paste, Drop, or Upload | Wondermayank</title>
+<meta name="description" content="Convert PNG images to SVG instantly in your browser. Embed pixel-perfect or trace to real vector paths. Paste with Ctrl+V, drag and drop, or click to upload.">
+<link rel="icon" type="image/svg+xml" href="https://wondermayank.github.io/favicon.svg">
+<style>
+  :root{--primary:#573AFC;--primary-active:#4527E0;--ink:#1d1d1f;--body:#3c3c3c;--muted:#6b6b6b;--muted-soft:#9a9a9a;--hairline:#e6e6e6;--hairline-strong:#cccccc;--canvas:#ffffff;--canvas-parchment:#f5f5f7;--on-primary:#ffffff;}
+  [data-theme="dark"]{--ink:#f5f5f7;--body:#d1d1d6;--muted:#8e8e93;--muted-soft:#636366;--hairline:#2c2c2e;--hairline-strong:#3a3a3c;--canvas:#0e0e10;--canvas-parchment:#161618;--primary:#9A7AFB;--primary-active:#7C5CF0;}
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--canvas-parchment);color:var(--ink);min-height:100vh;display:flex;flex-direction:column;align-items:center;transition:background .2s,color .2s;}
+  header{width:100%;max-width:680px;padding:28px 20px 8px;display:flex;align-items:center;justify-content:space-between;}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:-0.1px;}
+  .brand img{width:26px;height:26px;border-radius:6px;}
+  .theme-toggle{width:40px;height:40px;border-radius:9999px;border:1px solid var(--hairline-strong);background:var(--canvas);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .theme-toggle svg{width:18px;height:18px;stroke:var(--ink);}
+  main{width:100%;max-width:680px;padding:24px 20px 60px;flex:1;display:flex;flex-direction:column;align-items:center;}
+  h1{font-size:28px;font-weight:700;letter-spacing:-0.2px;margin:10px 0 6px;text-align:center;}
+  p.lead{font-size:16px;font-weight:400;color:var(--muted);text-align:center;margin:0 0 28px;max-width:480px;}
+  .dropzone{width:100%;min-height:260px;border:2px dashed var(--hairline-strong);border-radius:18px;background:var(--canvas);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;padding:32px 20px;transition:border-color .15s,background .15s,transform .1s;}
+  .dropzone:active{transform:scale(0.99);}
+  .dropzone.drag-over{border-color:var(--primary);background:color-mix(in srgb, var(--primary) 6%, var(--canvas));}
+  .dropzone svg{width:42px;height:42px;stroke:var(--primary);margin-bottom:14px;}
+  .dz-title{font-size:17px;font-weight:600;margin:0 0 6px;}
+  .dz-sub{font-size:14px;color:var(--muted);margin:0;line-height:1.5;}
+  .dz-sub kbd{font-family:inherit;background:var(--canvas-parchment);border:1px solid var(--hairline-strong);border-radius:5px;padding:1px 6px;font-size:13px;}
+  input[type="file"]{display:none;}
+  .preview-card{width:100%;margin-top:24px;background:var(--canvas);border:1px solid var(--hairline);border-radius:18px;padding:20px;display:none;}
+  .preview-card.show{display:block;}
+  .preview-img-wrap{width:100%;border-radius:11px;overflow:hidden;background:repeating-conic-gradient(#cccccc 0% 25%, var(--canvas-parchment) 0% 50%) 50% / 20px 20px;display:flex;align-items:center;justify-content:center;max-height:320px;}
+  .preview-img-wrap img,.preview-img-wrap svg{max-width:100%;max-height:320px;display:block;}
+  .file-meta{display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:14px;color:var(--muted);}
+  .file-meta strong{color:var(--ink);font-weight:600;}
+
+  .mode-label{font-size:14px;font-weight:600;margin-top:18px;margin-bottom:10px;}
+  .mode-row{display:flex;gap:8px;}
+  .mode-btn{flex:1;padding:12px 10px;border-radius:9999px;border:1px solid var(--hairline-strong);background:var(--canvas);font-size:13px;font-weight:600;cursor:pointer;color:var(--ink);text-align:center;}
+  .mode-btn.active{border-color:var(--primary);background:color-mix(in srgb, var(--primary) 10%, var(--canvas));color:var(--primary);}
+  .mode-desc{font-size:13px;color:var(--muted-soft);margin-top:10px;line-height:1.5;}
+
+  .trace-controls{display:none;margin-top:16px;}
+  .trace-controls.show{display:block;}
+  .quality-row{display:flex;align-items:center;gap:12px;margin-top:12px;}
+  .quality-row label{font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap;}
+  .quality-row input[type="range"]{flex:1;accent-color:var(--primary);}
+  .quality-row .qval{font-size:14px;color:var(--muted);min-width:48px;text-align:right;}
+
+  .progress-wrap{display:none;margin-top:16px;}
+  .progress-wrap.show{display:block;}
+  .progress-bar{width:100%;height:6px;border-radius:9999px;background:var(--canvas-parchment);overflow:hidden;}
+  .progress-fill{height:100%;width:0%;background:var(--primary);transition:width .15s;}
+  .progress-text{font-size:13px;color:var(--muted);margin-top:8px;text-align:center;}
+
+  .actions{display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;}
+  .btn{flex:1;min-width:140px;height:48px;border-radius:9999px;border:none;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s,background .15s;}
+  .btn:active{transform:scale(0.95);}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .btn-primary{background:var(--primary);color:var(--on-primary);}
+  .btn-primary:hover{background:var(--primary-active);}
+  .btn-secondary{background:var(--canvas);color:var(--ink);border:1px solid var(--hairline-strong);}
+  .btn svg{width:18px;height:18px;}
+  .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--canvas);padding:12px 20px;border-radius:9999px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  footer{width:100%;text-align:center;padding:18px;font-size:12px;color:var(--muted-soft);}
+  @media (max-width:480px){h1{font-size:23px;} .dropzone{min-height:220px;} .btn{min-width:0;}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><img src="https://wondermayank.github.io/favicon.svg" alt=""><span>PNG → SVG</span></div>
+  <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg></button>
+</header>
+
+<main>
+  <h1>PNG to SVG Converter</h1>
+  <p class="lead">Paste, drop, or click to convert — embed pixel-perfect, or trace to real vector paths.</p>
+
+  <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload, paste, or drop a PNG image">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    <p class="dz-title">Drop your PNG here</p>
+    <p class="dz-sub">or click to browse &nbsp;·&nbsp; or press <kbd>Ctrl</kbd> + <kbd>V</kbd> to paste</p>
+  </div>
+  <input type="file" id="fileInput" accept="image/png,image/*">
+
+  <div class="preview-card" id="previewCard">
+    <div class="preview-img-wrap" id="previewWrap"><img id="previewImg" alt="Image preview"></div>
+    <div class="file-meta"><span id="fileName">image.svg</span><strong id="fileSize">—</strong></div>
+
+    <div class="mode-label">Conversion mode</div>
+    <div class="mode-row">
+      <button class="mode-btn active" id="modeEmbed">Embed (pixel-perfect)</button>
+      <button class="mode-btn" id="modeTrace">Vector trace</button>
+    </div>
+    <p class="mode-desc" id="modeDesc">Wraps the original PNG inside an SVG container. Looks identical to the source at any size, but isn't editable vector art.</p>
+
+    <div class="trace-controls" id="traceControls">
+      <div class="quality-row">
+        <label for="colorCount">Colors</label>
+        <input type="range" id="colorCount" min="2" max="16" value="6" step="1">
+        <span class="qval" id="colorCountVal">6</span>
+      </div>
+      <div class="quality-row">
+        <label for="smoothing">Smoothing</label>
+        <input type="range" id="smoothing" min="0" max="4" value="2" step="1">
+        <span class="qval" id="smoothingVal">2</span>
+      </div>
+    </div>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-text" id="progressText">Tracing…</div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" id="clearBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Clear</button>
+      <button class="btn btn-primary" id="downloadBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download SVG</button>
+    </div>
+  </div>
+</main>
+
+<footer>© 2026 Thunder · by wondermayank</footer>
+<div class="toast" id="toast">Converted!</div>
+
+<script>
+(function(){
+  const dropzone=document.getElementById('dropzone'),fileInput=document.getElementById('fileInput'),previewCard=document.getElementById('previewCard'),previewWrap=document.getElementById('previewWrap'),previewImg=document.getElementById('previewImg'),fileNameEl=document.getElementById('fileName'),fileSizeEl=document.getElementById('fileSize'),modeEmbed=document.getElementById('modeEmbed'),modeTrace=document.getElementById('modeTrace'),modeDesc=document.getElementById('modeDesc'),traceControls=document.getElementById('traceControls'),colorCount=document.getElementById('colorCount'),colorCountVal=document.getElementById('colorCountVal'),smoothing=document.getElementById('smoothing'),smoothingVal=document.getElementById('smoothingVal'),progressWrap=document.getElementById('progressWrap'),progressFill=document.getElementById('progressFill'),progressText=document.getElementById('progressText'),downloadBtn=document.getElementById('downloadBtn'),clearBtn=document.getElementById('clearBtn'),toast=document.getElementById('toast'),themeToggle=document.getElementById('themeToggle'),themeIcon=document.getElementById('themeIcon');
+
+  let currentImage=null,currentName='image',mode='embed',cachedSvg=null,cacheKey='';
+
+  const sunPath='<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+  const moonPath='<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  function applyTheme(t){document.documentElement.setAttribute('data-theme',t);themeIcon.innerHTML=t==='dark'?sunPath:moonPath;localStorage.setItem('theme',t);}
+  applyTheme(localStorage.getItem('theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
+  themeToggle.addEventListener('click',()=>applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark'));
+
+  function showToast(msg){toast.textContent=msg;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),1800);}
+  function formatBytes(b){if(b<1024)return b+' B';if(b<1024*1024)return (b/1024).toFixed(1)+' KB';return (b/(1024*1024)).toFixed(2)+' MB';}
+
+  function setMode(m){
+    mode=m;
+    modeEmbed.classList.toggle('active',m==='embed');
+    modeTrace.classList.toggle('active',m==='trace');
+    traceControls.classList.toggle('show',m==='trace');
+    modeDesc.textContent = m==='embed'
+      ? 'Wraps the original PNG inside an SVG container. Looks identical to the source at any size, but isn\'t editable vector art.'
+      : 'Quantizes colors and traces contours into real <path> shapes. Best for logos, icons, and flat illustrations — soft photos will look posterized.';
+    if(currentImage) scheduleBuild();
+  }
+  modeEmbed.addEventListener('click',()=>setMode('embed'));
+  modeTrace.addEventListener('click',()=>setMode('trace'));
+
+  colorCount.addEventListener('input',()=>{colorCountVal.textContent=colorCount.value;scheduleBuild();});
+  smoothing.addEventListener('input',()=>{smoothingVal.textContent=smoothing.value;scheduleBuild();});
+
+  function loadImageFile(file){
+    if(!file||!file.type.startsWith('image/')){showToast('Please use an image file');return;}
+    currentName=(file.name||'image').replace(/\.[^/.]+$/,'');
+    const reader=new FileReader();
+    reader.onload=(e)=>{
+      currentImage=new Image();
+      currentImage.onload=()=>{
+        previewImg.src=e.target.result;
+        previewImg.style.display='block';
+        fileNameEl.textContent=currentName+'.svg';
+        previewCard.classList.add('show');
+        previewCard.scrollIntoView({behavior:'smooth',block:'nearest'});
+        scheduleBuild();
+      };
+      currentImage.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function buildEmbedSvg(){
+    const w=currentImage.naturalWidth,h=currentImage.naturalHeight;
+    const canvas=document.createElement('canvas');
+    canvas.width=w;canvas.height=h;
+    canvas.getContext('2d').drawImage(currentImage,0,0);
+    const dataUrl=canvas.toDataURL('image/png');
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'">'
+      +'<image width="'+w+'" height="'+h+'" href="'+dataUrl+'"/></svg>';
+  }
+
+  // --- Lightweight color-quantize + contour trace ---
+  function quantize(imageData,w,h,k){
+    const data=imageData.data;
+    const samples=[];
+    for(let i=0;i<data.length;i+=4*7){ // sample every ~7th pixel for speed
+      if(data[i+3]<10) continue;
+      samples.push([data[i],data[i+1],data[i+2]]);
+    }
+    if(samples.length===0) return {palette:[[255,255,255]],labels:new Uint8Array(w*h)};
+    // k-means, few iterations, fixed seed sampling
+    let centers=[];
+    for(let i=0;i<k;i++) centers.push(samples[Math.floor(i*samples.length/k)].slice());
+    for(let iter=0;iter<6;iter++){
+      const sums=Array.from({length:k},()=>[0,0,0,0]);
+      for(const s of samples){
+        let best=0,bestDist=Infinity;
+        for(let c=0;c<k;c++){
+          const d=(s[0]-centers[c][0])**2+(s[1]-centers[c][1])**2+(s[2]-centers[c][2])**2;
+          if(d<bestDist){bestDist=d;best=c;}
+        }
+        sums[best][0]+=s[0];sums[best][1]+=s[1];sums[best][2]+=s[2];sums[best][3]++;
+      }
+      for(let c=0;c<k;c++){
+        if(sums[c][3]>0){centers[c]=[sums[c][0]/sums[c][3],sums[c][1]/sums[c][3],sums[c][2]/sums[c][3]];}
+      }
+    }
+    // Label every pixel (including transparent -> label -1)
+    const labels=new Int16Array(w*h);
+    for(let p=0;p<w*h;p++){
+      const i=p*4;
+      if(data[i+3]<10){labels[p]=-1;continue;}
+      let best=0,bestDist=Infinity;
+      for(let c=0;c<k;c++){
+        const d=(data[i]-centers[c][0])**2+(data[i+1]-centers[c][1])**2+(data[i+2]-centers[c][2])**2;
+        if(d<bestDist){bestDist=d;best=c;}
+      }
+      labels[p]=best;
+    }
+    return {palette:centers,labels};
+  }
+
+  // Marching-squares-ish: build one rectangle path per pixel of a label, merged via simple run-length per row (keeps it fast & simple rather than true contouring)
+  function buildPathsForLabel(labels,w,h,label,smoothLevel){
+    // Build a binary mask, then trace boundary using a simple square-tracing algorithm on a coarsened grid for smoothing
+    const step=1+smoothLevel; // coarser grid = smoother/simpler shape
+    const gw=Math.ceil(w/step),gh=Math.ceil(h/step);
+    const mask=new Uint8Array(gw*gh);
+    for(let gy=0;gy<gh;gy++){
+      for(let gx=0;gx<gw;gx++){
+        // majority vote in this block
+        let count=0,total=0;
+        for(let yy=0;yy<step;yy++){
+          const py=gy*step+yy; if(py>=h) continue;
+          for(let xx=0;xx<step;xx++){
+            const px=gx*step+xx; if(px>=w) continue;
+            total++;
+            if(labels[py*w+px]===label) count++;
+          }
+        }
+        mask[gy*gw+gx]= total>0 && (count/total)>0.5 ? 1:0;
+      }
+    }
+    // Build rectangles via row run-length, merged into a single path string (simple, robust, no fill-rule headaches)
+    let d='';
+    for(let gy=0;gy<gh;gy++){
+      let x=0;
+      while(x<gw){
+        if(mask[gy*gw+x]){
+          let x2=x;
+          while(x2<gw && mask[gy*gw+x2]) x2++;
+          const px1=x*step,px2=Math.min(x2*step,w),py1=gy*step,py2=Math.min((gy+1)*step,h);
+          d+='M'+px1+' '+py1+'H'+px2+'V'+py2+'H'+px1+'Z ';
+          x=x2;
+        } else x++;
+      }
+    }
+    return d;
+  }
+
+  function rgbToHex(c){
+    return '#'+[c[0],c[1],c[2]].map(v=>Math.round(Math.max(0,Math.min(255,v))).toString(16).padStart(2,'0')).join('');
+  }
+
+  async function buildTraceSvg(){
+    const MAX_DIM=400; // cap working resolution for speed; output viewBox still scales to full size
+    const w=currentImage.naturalWidth,h=currentImage.naturalHeight;
+    const scale=Math.min(1,MAX_DIM/Math.max(w,h));
+    const sw=Math.max(1,Math.round(w*scale)),sh=Math.max(1,Math.round(h*scale));
+
+    const canvas=document.createElement('canvas');
+    canvas.width=sw;canvas.height=sh;
+    const ctx=canvas.getContext('2d');
+    ctx.drawImage(currentImage,0,0,sw,sh);
+    const imageData=ctx.getImageData(0,0,sw,sh);
+
+    progressWrap.classList.add('show');
+    progressFill.style.width='15%';
+    progressText.textContent='Quantizing colors…';
+    await new Promise(r=>setTimeout(r,0));
+
+    const k=parseInt(colorCount.value,10);
+    const smoothLevel=parseInt(smoothing.value,10);
+    const {palette,labels}=quantize(imageData,sw,sh,k);
+
+    progressFill.style.width='45%';
+    progressText.textContent='Tracing shapes…';
+    await new Promise(r=>setTimeout(r,0));
+
+    const scaleX=w/sw, scaleY=h/sh;
+    let paths='';
+    for(let label=0;label<palette.length;label++){
+      const d=buildPathsForLabel(labels,sw,sh,label,smoothLevel);
+      if(!d) continue;
+      const hex=rgbToHex(palette[label]);
+      paths+='<path d="'+d+'" fill="'+hex+'" transform="scale('+scaleX.toFixed(4)+' '+scaleY.toFixed(4)+')"/>';
+      progressFill.style.width=(45+(label/palette.length)*45)+'%';
+      await new Promise(r=>setTimeout(r,0));
+    }
+
+    progressFill.style.width='100%';
+    progressText.textContent='Done';
+    setTimeout(()=>progressWrap.classList.remove('show'),500);
+
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" shape-rendering="crispEdges">'+paths+'</svg>';
+  }
+
+  let buildTimer=null;
+  function scheduleBuild(){
+    clearTimeout(buildTimer);
+    buildTimer=setTimeout(doBuild,200);
+  }
+
+  async function doBuild(){
+    if(!currentImage) return;
+    downloadBtn.disabled=true;
+    fileSizeEl.textContent='building…';
+    let svg;
+    if(mode==='embed'){
+      svg=buildEmbedSvg();
+    } else {
+      svg=await buildTraceSvg();
+    }
+    cachedSvg=svg;
+    const blob=new Blob([svg],{type:'image/svg+xml'});
+    fileSizeEl.textContent='SVG ≈ '+formatBytes(blob.size);
+    // Swap preview to rendered SVG so user sees trace result
+    previewWrap.innerHTML=svg;
+    downloadBtn.disabled=false;
+  }
+
+  dropzone.addEventListener('click',()=>fileInput.click());
+  dropzone.addEventListener('keydown',(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();fileInput.click();}});
+  fileInput.addEventListener('change',(e)=>{if(e.target.files&&e.target.files[0])loadImageFile(e.target.files[0]);});
+
+  ['dragenter','dragover'].forEach(evt=>dropzone.addEventListener(evt,(e)=>{e.preventDefault();dropzone.classList.add('drag-over');}));
+  ['dragleave','drop'].forEach(evt=>dropzone.addEventListener(evt,(e)=>{e.preventDefault();dropzone.classList.remove('drag-over');}));
+  dropzone.addEventListener('drop',(e)=>{const file=e.dataTransfer.files&&e.dataTransfer.files[0];if(file)loadImageFile(file);});
+  ['dragover','drop'].forEach(evt=>window.addEventListener(evt,(e)=>e.preventDefault()));
+
+  window.addEventListener('paste',(e)=>{
+    const items=e.clipboardData&&e.clipboardData.items;if(!items)return;
+    for(const item of items){if(item.type.indexOf('image')!==-1){loadImageFile(item.getAsFile());break;}}
+  });
+
+  downloadBtn.addEventListener('click',()=>{
+    if(!cachedSvg)return;
+    const blob=new Blob([cachedSvg],{type:'image/svg+xml'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=currentName+'.svg';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    showToast('Downloaded as SVG');
+  });
+
+  clearBtn.addEventListener('click',()=>{
+    currentImage=null;cachedSvg=null;
+    previewCard.classList.remove('show');
+    previewWrap.innerHTML='<img id="previewImg" alt="Image preview">';
+    fileInput.value='';
+  });
+})();
+</script>
+</body>
+</html>
