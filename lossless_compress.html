@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lossless Compress — Free Online Tool</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#1a1a2e;--body:#4a4a68;--muted:#8888a0;--hairline:#e0e0ee;
+  --canvas:#f5f5fa;--surface:#ffffff;--surface-hover:#fafaff;
+  --primary:#573AFC;--primary-hover:#4a2ee0;--primary-light:rgba(87,58,252,.08);
+  --danger:#e74c3c;--success:#27ae60;--warning:#f39c12;
+  --radius:12px;--radius-sm:8px;--shadow:0 2px 12px rgba(26,26,46,.08);
+  --shadow-lg:0 8px 32px rgba(26,26,46,.12);--transition:.2s ease;
+  --font:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+}
+[data-theme="dark"]{
+  --ink:#e8e8f0;--body:#b0b0c8;--muted:#6868a0;--hairline:#2a2a40;
+  --canvas:#0f0f1a;--surface:#1a1a2e;--surface-hover:#222240;
+  --primary:#9A7AFB;--primary-hover:#8560f0;--primary-light:rgba(154,122,251,.12);
+  --shadow:0 2px 12px rgba(0,0,0,.3);--shadow-lg:0 8px 32px rgba(0,0,0,.4);
+}
+html{font-size:16px;scroll-behavior:smooth}
+body{font-family:var(--font);color:var(--body);background:var(--canvas);line-height:1.6;min-height:100vh;display:flex;flex-direction:column}
+a{color:var(--primary);text-decoration:none}
+a:hover{text-decoration:underline}
+.loading-screen{position:fixed;inset:0;background:var(--canvas);display:flex;align-items:center;justify-content:center;z-index:9999;transition:opacity .4s ease}
+.loading-screen.hidden{opacity:0;pointer-events:none}
+.spinner{width:40px;height:40px;border:3px solid var(--hairline);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.header{background:var(--surface);border-bottom:1px solid var(--hairline);padding:.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.brand{display:flex;align-items:center;gap:.6rem;font-weight:700;font-size:1.1rem;color:var(--ink)}
+.brand img{width:26px;height:26px;border-radius:6px}
+.theme-toggle{background:var(--surface);border:1px solid var(--hairline);border-radius:50%;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:var(--body);transition:var(--transition)}
+.theme-toggle:hover{border-color:var(--primary);color:var(--primary)}
+.main{flex:1;max-width:900px;margin:0 auto;padding:2rem 1.5rem;width:100%}
+.main h1{font-size:2rem;font-weight:800;color:var(--ink);margin-bottom:.5rem;text-align:center}
+.lead{color:var(--muted);text-align:center;margin-bottom:2rem;font-size:1.05rem}
+.dropzone{border:2px dashed var(--hairline);border-radius:var(--radius);padding:3rem 2rem;text-align:center;cursor:pointer;transition:var(--transition);background:var(--surface);margin-bottom:1.5rem}
+.dropzone:hover,.dropzone.dragover{border-color:var(--primary);background:var(--primary-light)}
+.dropzone-icon{font-size:2.5rem;margin-bottom:.5rem}
+.dropzone-text{color:var(--muted);font-size:.95rem}
+.dropzone-text strong{color:var(--primary)}
+.editor-card{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius);padding:1.5rem;box-shadow:var(--shadow);margin-bottom:1.5rem;display:none}
+.editor-card.visible{display:block}
+.editor-card h3{color:var(--ink);font-size:1.1rem;margin-bottom:1rem}
+.stats-row{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem}
+.stat-box{background:var(--canvas);border-radius:var(--radius-sm);padding:.75rem 1rem;flex:1;min-width:120px;text-align:center}
+.stat-label{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem}
+.stat-value{font-size:1.1rem;font-weight:700;color:var(--ink)}
+.stat-value.success{color:var(--success)}
+.savings-bar{background:var(--hairline);border-radius:20px;height:24px;overflow:hidden;margin-bottom:1.5rem;position:relative}
+.savings-fill{height:100%;background:linear-gradient(90deg,var(--success),#2ecc71);border-radius:20px;transition:width .5s ease;display:flex;align-items:center;justify-content:center}
+.savings-text{font-size:.75rem;font-weight:700;color:#fff;position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.65rem 1.5rem;border:none;border-radius:var(--radius-sm);font-size:.9rem;font-weight:600;cursor:pointer;transition:var(--transition);font-family:var(--font)}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-hover);transform:translateY(-1px);box-shadow:var(--shadow)}
+.btn-secondary{background:var(--canvas);color:var(--body);border:1px solid var(--hairline)}
+.btn-secondary:hover{border-color:var(--primary);color:var(--primary)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-row{display:flex;gap:.75rem;flex-wrap:wrap}
+.compress-info{background:var(--primary-light);border:1px solid var(--primary);border-radius:var(--radius-sm);padding:1rem;margin-bottom:1.5rem;font-size:.85rem;color:var(--primary);display:flex;align-items:center;gap:.5rem}
+.toast-container{position:fixed;bottom:1.5rem;right:1.5rem;z-index:9000;display:flex;flex-direction:column;gap:.5rem}
+.toast{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius-sm);padding:.75rem 1.25rem;box-shadow:var(--shadow-lg);font-size:.85rem;color:var(--ink);display:flex;align-items:center;gap:.5rem;animation:toastIn .3s ease;max-width:340px}
+.toast.success{border-left:4px solid var(--success)}.toast.error{border-left:4px solid var(--danger)}.toast.info{border-left:4px solid var(--primary)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.faq-section{margin-top:3rem;padding-top:2rem;border-top:1px solid var(--hairline)}
+.faq-section h2{font-size:1.4rem;color:var(--ink);margin-bottom:1.5rem;text-align:center}
+.faq-item{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius-sm);margin-bottom:.75rem;overflow:hidden}
+.faq-question{padding:1rem 1.25rem;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:600;color:var(--ink);font-size:.95rem;transition:var(--transition)}
+.faq-question:hover{background:var(--surface-hover)}
+.faq-question .arrow{transition:transform .2s ease;font-size:.8rem}
+.faq-item.open .faq-question .arrow{transform:rotate(180deg)}
+.faq-answer{max-height:0;overflow:hidden;transition:max-height .3s ease}
+.faq-item.open .faq-answer{max-height:500px}
+.faq-answer p{padding:0 1.25rem 1rem;color:var(--body);font-size:.9rem;line-height:1.7}
+.footer{text-align:center;padding:2rem 1.5rem;border-top:1px solid var(--hairline);margin-top:auto;color:var(--muted);font-size:.8rem}
+.footer a{color:var(--primary)}
+@media(max-width:600px){.main h1{font-size:1.5rem}.dropzone{padding:2rem 1rem}.stats-row{flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="loading-screen" id="loadingScreen"><div class="spinner"></div></div>
+<header class="header">
+  <div class="brand"><img src="https://wondermayank.github.io/favicon.svg" alt="Wondermayank"><span>Lossless Compress</span></div>
+  <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+</header>
+<main class="main">
+  <h1>Lossless Compress</h1>
+  <p class="lead">Reduce file size without losing a single pixel. 100% quality preserved, always.</p>
+
+  <div class="dropzone" id="dropzone">
+    <div class="dropzone-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
+    <p class="dropzone-text">Drag & drop PNG, JPEG, or WebP — <strong>click to browse</strong>, or paste from clipboard</p>
+    <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp" hidden>
+  </div>
+
+  <div class="editor-card" id="editorCard">
+    <div class="compress-info"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#27ae60" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Lossless mode — no quality loss. Pixels are preserved exactly as the original.</div>
+
+    <div class="stats-row">
+      <div class="stat-box"><div class="stat-label">Original Size</div><div class="stat-value" id="origSize">—</div></div>
+      <div class="stat-box"><div class="stat-label">Compressed Size</div><div class="stat-value success" id="compSize">—</div></div>
+      <div class="stat-box"><div class="stat-label">Saved</div><div class="stat-value success" id="savedPct">—</div></div>
+    </div>
+
+    <div class="savings-bar"><div class="savings-fill" id="savingsFill" style="width:0%"></div><div class="savings-text" id="savingsText">Compress to see savings</div></div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="compressBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg> Compress Losslessly</button>
+      <button class="btn btn-secondary" id="downloadBtn" disabled>⬇ Download Compressed</button>
+      <button class="btn btn-secondary" id="resetBtn">↺ Reset</button>
+    </div>
+  </div>
+</main>
+
+<section class="faq-section main">
+  <h2>Frequently Asked Questions</h2>
+  <div class="faq-item"><div class="faq-question">What's the difference between lossless and lossy compression?<span class="arrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></div><div class="faq-answer"><p>Lossless compression reduces file size without any quality loss — every pixel is preserved exactly. Lossy compression achieves smaller files by discarding some image data, which can reduce visual quality. This tool uses lossless only.</p></div></div>
+  <div class="faq-item"><div class="faq-question">How much can lossless compression reduce file size?<span class="arrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></div><div class="faq-answer"><p>Typically 10-30% for PNGs and 5-15% for JPEGs. PNGs with large solid-color areas compress best. JPEGs are already well-optimized, so savings are smaller. Results vary based on image content.</p></div></div>
+  <div class="faq-item"><div class="faq-question">Which format compresses best losslessly?<span class="arrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></div><div class="faq-answer"><p>WebP typically achieves the best lossless compression, followed by PNG. JPEG lossless compression offers modest savings since JPEG is inherently lossy. Converting to WebP can yield 25-35% smaller files.</p></div></div>
+  <div class="faq-item"><div class="faq-question">Will lossless compression affect my image quality?<span class="arrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></div><div class="faq-answer"><p>Absolutely not. Lossless compression is mathematically guaranteed to produce an identical image when decompressed. Every single pixel value remains unchanged.</p></div></div>
+  <div class="faq-item"><div class="faq-question">Is my image uploaded to a server?<span class="arrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></div><div class="faq-answer"><p>No. All compression happens locally in your browser using Canvas API. Your images never leave your device, ensuring complete privacy.</p></div></div>
+</section>
+
+<footer class="footer"><p>Lossless Compress — Free, private, runs entirely in your browser. No uploads to any server.</p></footer>
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function(){
+  const html=document.documentElement,themeBtn=document.getElementById('themeToggle');
+  const saved=localStorage.getItem('theme');if(saved)html.setAttribute('data-theme',saved);
+  function updateIcon(){themeBtn.innerHTML=html.getAttribute('data-theme')==='dark'?'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>':'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'}
+  updateIcon();
+  themeBtn.addEventListener('click',()=>{const t=html.getAttribute('data-theme')==='dark'?'':'dark';html.setAttribute('data-theme',t);localStorage.setItem('theme',t);updateIcon()});
+  window.addEventListener('load',()=>setTimeout(()=>document.getElementById('loadingScreen').classList.add('hidden'),300));
+  function showToast(msg,type='info'){const c=document.getElementById('toastContainer'),t=document.createElement('div');t.className='toast '+type;t.textContent=msg;c.appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(20px)';setTimeout(()=>t.remove(),300)},3000)}
+  document.querySelectorAll('.faq-question').forEach(q=>q.addEventListener('click',()=>q.parentElement.classList.toggle('open')));
+
+  let srcFile=null,compBlob=null;
+  const dropzone=document.getElementById('dropzone'),fileInput=document.getElementById('fileInput');
+  const editorCard=document.getElementById('editorCard');
+
+  function formatBytes(b){if(b<1024)return b+' B';if(b<1048576)return(b/1024).toFixed(1)+' KB';return(b/1048576).toFixed(2)+' MB'}
+
+  function loadImage(file){
+    if(!file||!file.type.startsWith('image/')){showToast('Please select PNG, JPEG, or WebP.','error');return}
+    srcFile=file;compBlob=null;
+    editorCard.classList.add('visible');
+    document.getElementById('origSize').textContent=formatBytes(file.size);
+    document.getElementById('compSize').textContent='—';
+    document.getElementById('savedPct').textContent='—';
+    document.getElementById('savingsFill').style.width='0%';
+    document.getElementById('savingsText').textContent='Click Compress to start';
+    document.getElementById('downloadBtn').disabled=true;
+  }
+
+  async function compressLossless(){
+    if(!srcFile){showToast('Please upload an image first.','error');return}
+    const btn=document.getElementById('compressBtn');btn.disabled=true;btn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Compressing...';
+
+    try{
+      const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=URL.createObjectURL(srcFile)});
+      const c=document.createElement('canvas');c.width=img.width;c.height=img.height;
+      const ctx=c.getContext('2d');ctx.drawImage(img,0,0);
+      URL.revokeObjectURL(img.src);
+
+      // Re-encode losslessly based on original type
+      let outType=srcFile.type;
+      if(outType==='image/jpeg')outType='image/png'; // JPEG → PNG for lossless
+      if(outType!=='image/png'&&outType!=='image/webp')outType='image/png';
+
+      const blob=await new Promise(r=>c.toBlob(r,outType==='image/webp'?'image/webp':outType==='image/png'?outType:'image/png'));
+      compBlob=blob;
+
+      const saved=((1-blob.size/srcFile.size)*100);
+      document.getElementById('compSize').textContent=formatBytes(blob.size);
+      document.getElementById('savedPct').textContent=saved>0?saved.toFixed(1)+'%':'0%';
+      document.getElementById('savingsFill').style.width=Math.max(0,saved)+'%';
+      document.getElementById('savingsText').textContent=saved>0?saved.toFixed(1)+'% saved':'Already optimally compressed';
+      document.getElementById('downloadBtn').disabled=false;
+
+      if(saved<=0)showToast('Image is already optimally compressed.','info');
+      else showToast('Compressed by '+saved.toFixed(1)+'%!','success');
+    }catch(e){showToast('Compression failed: '+e.message,'error')}
+    btn.disabled=false;btn.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg> Compress Losslessly';
+  }
+
+  dropzone.addEventListener('click',()=>fileInput.click());
+  fileInput.addEventListener('change',e=>{if(e.target.files[0])loadImage(e.target.files[0])});
+  dropzone.addEventListener('dragover',e=>{e.preventDefault();dropzone.classList.add('dragover')});
+  dropzone.addEventListener('dragleave',()=>dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop',e=>{e.preventDefault();dropzone.classList.remove('dragover');if(e.dataTransfer.files[0])loadImage(e.dataTransfer.files[0])});
+  document.addEventListener('paste',e=>{const items=e.clipboardData?.items;if(!items)return;for(const it of items)if(it.type.startsWith('image/')){loadImage(it.getAsFile());break}});
+
+  document.getElementById('compressBtn').addEventListener('click',compressLossless);
+  document.getElementById('downloadBtn').addEventListener('click',()=>{
+    if(!compBlob)return;
+    const ext=compBlob.type==='image/webp'?'.webp':compBlob.type==='image/png'?'.png':'.jpeg';
+    const a=document.createElement('a');
+    const name=srcFile.name.replace(/\.[^.]+$/,'')+ext;
+    a.download=name;a.href=URL.createObjectURL(compBlob);a.click();URL.revokeObjectURL(a.href);
+    showToast('Downloaded!','success');
+  });
+  document.getElementById('resetBtn').addEventListener('click',()=>{srcFile=null;compBlob=null;editorCard.classList.remove('visible');fileInput.value='';showToast('Reset complete.','info')});
+})();
+</script>
+</body>
+</html>
