@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crop Image — Passport Ratio & Auto-Trim Borders | Wondermayank</title>
+<meta name="description" content="Crop your passport-size photo to the exact ratio, or remove background borders and extra whitespace automatically. Paste, drop, or click to crop, all in your browser.">
+<link rel="icon" type="image/svg+xml" href="https://wondermayank.github.io/favicon.svg">
+<meta property="og:title" content="Crop Image — Exam Photo Ratio Tool">
+<meta property="og:description" content="Crop passport-size photo to exact ratio. Remove background borders or extra whitespace quickly.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Crop Image — Exam Photo Ratio Tool">
+<meta name="twitter:description" content="Crop passport-size photo to exact ratio. Remove background borders or extra whitespace quickly.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type":"Question","name":"What aspect ratio should a passport photo be?","acceptedAnswer":{"@type":"Answer","text":"A standard passport photo uses a 35:45 aspect ratio (roughly 7:9), matching the international 35mm by 45mm passport photo standard."}},
+    {"@type":"Question","name":"How do I remove white borders from a scanned signature?","acceptedAnswer":{"@type":"Answer","text":"Use an auto-trim feature that detects the outer rows and columns of near-uniform background color and crops them away automatically, leaving just the signature or photo content."}},
+    {"@type":"Question","name":"Can I crop a photo to a custom ratio?","acceptedAnswer":{"@type":"Answer","text":"Yes, in addition to standard passport and signature ratios, a free-form crop mode lets you drag a crop box to any ratio or size you need."}}
+  ]
+}
+</script>
+<style>
+  :root{
+    --primary:#573AFC;--primary-active:#4527E0;--primary-focus:#6B4FFF;
+    --ink:#1d1d1f;--body:#3c3c3c;--muted:#6b6b6b;--muted-soft:#9a9a9a;
+    --hairline:#e6e6e6;--hairline-strong:#cccccc;
+    --canvas:#ffffff;--canvas-parchment:#f5f5f7;--surface-card:#fafafa;
+    --on-primary:#ffffff;--success:#22c55e;--warning:#f59e0b;--error:#dc2626;
+  }
+  [data-theme="dark"]{
+    --ink:#f5f5f7;--body:#d1d1d6;--muted:#8e8e93;--muted-soft:#636366;
+    --hairline:#2c2c2e;--hairline-strong:#3a3a3c;
+    --canvas:#0e0e10;--canvas-parchment:#161618;--surface-card:#1c1c1e;
+    --primary:#9A7AFB;--primary-active:#7C5CF0;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--canvas-parchment);color:var(--ink);min-height:100vh;display:flex;flex-direction:column;align-items:center;transition:background .2s,color .2s;}
+
+  #loadScreen{position:fixed;inset:0;background:var(--canvas);z-index:999;display:flex;align-items:center;justify-content:center;transition:opacity .3s;}
+  #loadScreen svg circle{stroke:var(--primary);stroke-linecap:round;transform-origin:center;animation:spin 1.1s linear infinite;}
+  @keyframes spin{from{stroke-dashoffset:160;}to{stroke-dashoffset:0;}}
+  #loadScreen.hide{opacity:0;pointer-events:none;}
+
+  header{width:100%;max-width:760px;padding:28px 20px 8px;display:flex;align-items:center;justify-content:space-between;}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:-0.1px;}
+  .brand img{width:26px;height:26px;border-radius:6px;}
+  .theme-toggle{width:40px;height:40px;border-radius:9999px;border:1px solid var(--hairline-strong);background:var(--canvas);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .theme-toggle svg{width:18px;height:18px;stroke:var(--ink);}
+
+  main{width:100%;max-width:760px;padding:24px 20px 60px;flex:1;display:flex;flex-direction:column;align-items:center;}
+  h1{font-size:30px;font-weight:700;letter-spacing:-0.2px;margin:10px 0 6px;text-align:center;}
+  p.lead{font-size:16px;font-weight:400;color:var(--muted);text-align:center;margin:0 0 24px;max-width:520px;line-height:1.5;}
+
+  .ratio-section{width:100%;margin-bottom:20px;}
+  .ratio-label{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted-soft);margin-bottom:10px;}
+  .ratio-grid{display:flex;flex-wrap:wrap;gap:8px;}
+  .ratio-chip{padding:10px 16px;border-radius:9999px;border:1px solid var(--hairline-strong);background:var(--canvas);font-size:13px;font-weight:600;cursor:pointer;color:var(--ink);}
+  .ratio-chip.active{border-color:var(--primary);background:color-mix(in srgb, var(--primary) 10%, var(--canvas));color:var(--primary);}
+
+  .dropzone{width:100%;min-height:220px;border:2px dashed var(--hairline-strong);border-radius:18px;background:var(--canvas);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;padding:28px 20px;transition:border-color .15s,background .15s,transform .1s;}
+  .dropzone:active{transform:scale(0.99);}
+  .dropzone.drag-over{border-color:var(--primary);background:color-mix(in srgb, var(--primary) 6%, var(--canvas));}
+  .dropzone svg{width:40px;height:40px;stroke:var(--primary);margin-bottom:12px;}
+  .dz-title{font-size:16px;font-weight:600;margin:0 0 6px;}
+  .dz-sub{font-size:13px;color:var(--muted);margin:0;line-height:1.5;}
+  .dz-sub kbd{font-family:inherit;background:var(--canvas-parchment);border:1px solid var(--hairline-strong);border-radius:5px;padding:1px 6px;font-size:12px;}
+  input[type="file"]{display:none;}
+
+  .editor-card{width:100%;margin-top:20px;background:var(--canvas);border:1px solid var(--hairline);border-radius:18px;padding:20px;display:none;}
+  .editor-card.show{display:block;}
+
+  .autotrim-banner{display:none;align-items:center;justify-content:space-between;gap:12px;background:color-mix(in srgb, var(--primary) 8%, var(--canvas));border:1px solid color-mix(in srgb, var(--primary) 25%, transparent);border-radius:14px;padding:14px 16px;margin-bottom:16px;}
+  .autotrim-banner.show{display:flex;}
+  .autotrim-text{font-size:13px;color:var(--ink);line-height:1.4;}
+  .autotrim-text strong{display:block;font-size:14px;margin-bottom:2px;}
+  .autotrim-btn{flex-shrink:0;height:38px;padding:0 16px;border-radius:9999px;border:none;background:var(--primary);color:var(--on-primary);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;}
+  .autotrim-btn:active{transform:scale(0.95);}
+
+  .crop-stage{position:relative;width:100%;background:repeating-conic-gradient(#cccccc 0% 25%, var(--canvas-parchment) 0% 50%) 50% / 18px 18px;border-radius:14px;overflow:hidden;touch-action:none;user-select:none;display:flex;align-items:center;justify-content:center;min-height:280px;max-height:420px;}
+  .crop-stage img{position:absolute;max-width:none;will-change:transform;}
+  .crop-box{position:absolute;border:2px solid var(--primary);box-shadow:0 0 0 2000px rgba(0,0,0,0.45);cursor:move;}
+  .crop-handle{position:absolute;width:16px;height:16px;background:var(--primary);border:2px solid #fff;border-radius:50%;}
+  .crop-handle.nw{top:-9px;left:-9px;cursor:nwse-resize;}
+  .crop-handle.ne{top:-9px;right:-9px;cursor:nesw-resize;}
+  .crop-handle.sw{bottom:-9px;left:-9px;cursor:nesw-resize;}
+  .crop-handle.se{bottom:-9px;right:-9px;cursor:nwse-resize;}
+  .crop-stage.dragging{cursor:grabbing;}
+
+  .zoom-row{display:flex;align-items:center;gap:12px;margin-top:14px;}
+  .zoom-row label{font-size:13px;font-weight:600;white-space:nowrap;}
+  .zoom-row input[type="range"]{flex:1;accent-color:var(--primary);}
+
+  .result-bar{display:flex;justify-content:space-between;align-items:center;margin-top:18px;padding:12px 16px;background:var(--canvas-parchment);border-radius:12px;font-size:13px;}
+  .result-bar .rb-label{color:var(--muted);}
+  .result-bar .rb-value{font-weight:700;color:var(--ink);}
+
+  .actions{display:flex;gap:12px;margin-top:18px;flex-wrap:wrap;}
+  .btn{flex:1;min-width:140px;height:48px;border-radius:9999px;border:none;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s,background .15s;}
+  .btn:active{transform:scale(0.95);}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .btn-primary{background:var(--primary);color:var(--on-primary);}
+  .btn-primary:hover{background:var(--primary-active);}
+  .btn-secondary{background:var(--canvas);color:var(--ink);border:1px solid var(--hairline-strong);}
+  .btn svg{width:18px;height:18px;}
+
+  .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--canvas);padding:12px 20px;border-radius:9999px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  .faq-section{width:100%;margin-top:40px;}
+  .faq-title{font-size:20px;font-weight:700;margin-bottom:16px;}
+  .faq-item{background:var(--canvas);border:1px solid var(--hairline);border-radius:14px;padding:16px 18px;margin-bottom:10px;}
+  .faq-q{font-size:14px;font-weight:600;margin-bottom:6px;}
+  .faq-a{font-size:13px;color:var(--muted);line-height:1.55;margin:0;}
+
+  footer{width:100%;background:var(--canvas-parchment);padding:32px 20px 20px;margin-top:20px;}
+  .footer-inner{max-width:760px;margin:0 auto;display:flex;flex-wrap:wrap;gap:32px;justify-content:space-between;}
+  .footer-col{min-width:140px;}
+  .footer-col h4{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted-soft);margin:0 0 12px;}
+  .footer-col a{display:block;font-size:13px;color:var(--muted);text-decoration:none;margin-bottom:8px;}
+  .footer-col a:hover{color:var(--primary);}
+  .footer-bottom{max-width:760px;margin:24px auto 0;border-top:1px solid var(--hairline);padding-top:16px;font-size:12px;color:var(--muted-soft);text-align:center;}
+
+  @media (max-width:480px){
+    h1{font-size:24px;}
+    .btn{min-width:0;}
+    .footer-inner{gap:20px;}
+    .autotrim-banner{flex-direction:column;align-items:stretch;}
+  }
+</style>
+</head>
+<body>
+
+<div id="loadScreen">
+  <svg width="56" height="56" viewBox="0 0 56 56">
+    <circle cx="28" cy="28" r="24" fill="none" stroke-width="3" stroke-dasharray="151" stroke-dashoffset="0" opacity="0.15"/>
+    <circle cx="28" cy="28" r="24" fill="none" stroke-width="3" stroke-dasharray="40 151"/>
+  </svg>
+</div>
+
+<header>
+  <div class="brand"><img src="https://wondermayank.github.io/favicon.svg" alt="Wondermayank"><span>Crop Image</span></div>
+  <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg></button>
+</header>
+
+<main>
+  <h1>Crop Image to Exact Ratio</h1>
+  <p class="lead">Crop your passport-size photo to the exact ratio, or remove background borders and extra whitespace automatically — all in your browser.</p>
+
+  <section class="ratio-section">
+    <div class="ratio-label">Crop ratio</div>
+    <div class="ratio-grid" id="ratioGrid">
+      <button class="ratio-chip active" data-ratio="0.778">Passport (35:45)</button>
+      <button class="ratio-chip" data-ratio="1">Square (1:1)</button>
+      <button class="ratio-chip" data-ratio="2.33">Signature (140:60)</button>
+      <button class="ratio-chip" data-ratio="free">Free crop</button>
+    </div>
+  </section>
+
+  <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload, paste, or drop your image">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    <p class="dz-title">Drop your image here</p>
+    <p class="dz-sub">or click to browse &nbsp;·&nbsp; or press <kbd>Ctrl</kbd> + <kbd>V</kbd> to paste</p>
+  </div>
+  <input type="file" id="fileInput" accept="image/*">
+
+  <div class="editor-card" id="editorCard">
+
+    <div class="autotrim-banner" id="autotrimBanner">
+      <div class="autotrim-text"><strong>Auto-trim borders</strong>Remove uniform background space around your photo or signature in one click.</div>
+      <button class="autotrim-btn" id="autotrimBtn">Auto-trim</button>
+    </div>
+
+    <div class="crop-stage" id="cropStage">
+      <img id="cropImg" alt="">
+      <div class="crop-box" id="cropBox">
+        <div class="crop-handle nw" data-handle="nw"></div>
+        <div class="crop-handle ne" data-handle="ne"></div>
+        <div class="crop-handle sw" data-handle="sw"></div>
+        <div class="crop-handle se" data-handle="se"></div>
+      </div>
+    </div>
+
+    <div class="zoom-row">
+      <label for="zoomSlider">Zoom</label>
+      <input type="range" id="zoomSlider" min="100" max="400" value="100" step="1">
+    </div>
+
+    <div class="result-bar">
+      <span class="rb-label">Output</span>
+      <span class="rb-value" id="resultText">—</span>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" id="clearBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Clear</button>
+      <button class="btn btn-primary" id="downloadBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download Cropped</button>
+    </div>
+  </div>
+
+  <section class="faq-section">
+    <h2 class="faq-title">Frequently asked questions</h2>
+    <div class="faq-item">
+      <p class="faq-q">What aspect ratio should a passport photo be?</p>
+      <p class="faq-a">A standard passport photo uses a 35:45 aspect ratio (roughly 7:9), matching the international 35mm × 45mm passport photo standard.</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">How do I remove white borders from a scanned signature?</p>
+      <p class="faq-a">Use the auto-trim feature, which detects the outer rows and columns of near-uniform background color and crops them away automatically, leaving just the signature or photo content.</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">Can I crop a photo to a custom ratio?</p>
+      <p class="faq-a">Yes — switch to "Free crop" mode, which lets you drag the crop box's corner handles to any ratio or size you need, instead of being locked to a fixed ratio.</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">Does cropping resize my photo to specific pixel dimensions?</p>
+      <p class="faq-a">Cropping only changes the visible area and ratio, not the exact pixel count. If your exam portal also requires a specific pixel size like 200×230px, use the Image Resizer tool after cropping.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-col">
+      <h4>Thunder</h4>
+      <a href="https://commercesehoga.github.io/">ThunderStudy</a>
+      <a href="https://commercesehoga.github.io/dashboard">CBT Mock Platform</a>
+      <a href="https://thunderstudy.github.io">Free Study Material</a>
+      <a href="https://commercesehoga.github.io/help">Help / Donate</a>
+    </div>
+    <div class="footer-col">
+      <h4>wondermayank</h4>
+      <a href="https://wondermayank.indevs.in">Portfolio</a>
+      <a href="https://wondermayank.github.io/">wondermayank.github.io</a>
+      <a href="https://wondermayank.github.io/mail">Mail</a>
+      <a href="https://wondermayank.github.io/contact">Contact</a>
+    </div>
+    <div class="footer-col">
+      <h4>Legal</h4>
+      <a href="https://wondermayank.github.io/terms">Terms</a>
+      <a href="https://wondermayank.github.io/privacy">Privacy</a>
+      <a href="https://wondermayank.github.io/disclaimer">Disclaimer</a>
+    </div>
+  </div>
+  <div class="footer-bottom">© 2026 Thunder · by wondermayank</div>
+</footer>
+
+<div class="toast" id="toast">Done!</div>
+
+<script>
+(function(){
+  const loadScreen=document.getElementById('loadScreen');
+  function hideLoader(){loadScreen.classList.add('hide');setTimeout(()=>loadScreen.remove(),350);}
+  if(document.readyState==='complete') hideLoader();
+  else window.addEventListener('load',hideLoader);
+  setTimeout(hideLoader,1500);
+
+  const themeToggle=document.getElementById('themeToggle'),themeIcon=document.getElementById('themeIcon');
+  const sunPath='<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+  const moonPath='<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  function applyTheme(t){document.documentElement.setAttribute('data-theme',t);themeIcon.innerHTML=t==='dark'?sunPath:moonPath;localStorage.setItem('theme',t);}
+  applyTheme(localStorage.getItem('theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
+  themeToggle.addEventListener('click',()=>applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark'));
+
+  const dropzone=document.getElementById('dropzone'),fileInput=document.getElementById('fileInput'),editorCard=document.getElementById('editorCard'),
+        autotrimBanner=document.getElementById('autotrimBanner'),autotrimBtn=document.getElementById('autotrimBtn'),
+        cropStage=document.getElementById('cropStage'),cropImg=document.getElementById('cropImg'),cropBox=document.getElementById('cropBox'),
+        zoomSlider=document.getElementById('zoomSlider'),ratioGrid=document.getElementById('ratioGrid'),
+        resultText=document.getElementById('resultText'),downloadBtn=document.getElementById('downloadBtn'),clearBtn=document.getElementById('clearBtn'),
+        toast=document.getElementById('toast');
+
+  let img=null, currentName='image', ratioMode=0.778; // width/height
+  let cropState={ scale:1, minScale:1, offsetX:0, offsetY:0, boxLeft:0, boxTop:0, boxW:0, boxH:0 };
+  let dragInfo=null;
+  let lastOutput=null;
+
+  function showToast(msg){toast.textContent=msg;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),1800);}
+  function formatBytes(b){if(b<1024)return b+' B';if(b<1024*1024)return (b/1024).toFixed(1)+' KB';return (b/(1024*1024)).toFixed(2)+' MB';}
+
+  // ---------- Ratio selection ----------
+  ratioGrid.querySelectorAll('.ratio-chip').forEach(chip=>{
+    chip.addEventListener('click',()=>{
+      ratioGrid.querySelectorAll('.ratio-chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      ratioMode = chip.dataset.ratio==='free' ? 'free' : parseFloat(chip.dataset.ratio);
+      if(img){ cropState._positioned=false; cropState._initialized=false; layoutStage(true); }
+    });
+  });
+
+  function loadImageFile(file){
+    if(!file||!file.type.startsWith('image/')){showToast('Please use an image file');return;}
+    currentName=(file.name||'image').replace(/\.[^/.]+$/,'');
+    const reader=new FileReader();
+    reader.onload=(e)=>{
+      const im=new Image();
+      im.onload=()=>{
+        img=im;
+        cropImg.src=e.target.result;
+        editorCard.classList.add('show');
+        autotrimBanner.classList.add('show');
+        editorCard.scrollIntoView({behavior:'smooth',block:'nearest'});
+        setTimeout(()=>{ layoutStage(true); updateResult(); }, 30);
+      };
+      im.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ---------- Stage layout ----------
+  function currentAspect(){
+    if(ratioMode==='free'){
+      return cropState.boxW && cropState.boxH ? cropState.boxW/cropState.boxH : 1;
+    }
+    return ratioMode;
+  }
+
+  function layoutStage(resetBox){
+    if(!img) return;
+    const stageW=cropStage.clientWidth, stageH=cropStage.clientHeight;
+
+    if(resetBox){
+      const aspect = ratioMode==='free' ? 1 : ratioMode;
+      let boxW,boxH;
+      if(stageW/stageH > aspect){ boxH=stageH*0.8; boxW=boxH*aspect; }
+      else { boxW=stageW*0.8; boxH=boxW/aspect; }
+      cropState.boxLeft=(stageW-boxW)/2;
+      cropState.boxTop=(stageH-boxH)/2;
+      cropState.boxW=boxW; cropState.boxH=boxH;
+
+      const baseScaleW=boxW/img.naturalWidth, baseScaleH=boxH/img.naturalHeight;
+      cropState.minScale=Math.max(baseScaleW,baseScaleH);
+      cropState.scale=cropState.minScale;
+      zoomSlider.value=100;
+
+      const dispW=img.naturalWidth*cropState.scale, dispH=img.naturalHeight*cropState.scale;
+      cropState.offsetX=cropState.boxLeft-(dispW-boxW)/2;
+      cropState.offsetY=cropState.boxTop-(dispH-boxH)/2;
+    }
+    renderBox();
+    applyImageTransform();
+  }
+
+  function renderBox(){
+    cropBox.style.left=cropState.boxLeft+'px';
+    cropBox.style.top=cropState.boxTop+'px';
+    cropBox.style.width=cropState.boxW+'px';
+    cropBox.style.height=cropState.boxH+'px';
+  }
+
+  function applyImageTransform(){
+    const dispW=img.naturalWidth*cropState.scale, dispH=img.naturalHeight*cropState.scale;
+    cropImg.style.width=dispW+'px';
+    cropImg.style.height=dispH+'px';
+    constrainOffset();
+    cropImg.style.left=cropState.offsetX+'px';
+    cropImg.style.top=cropState.offsetY+'px';
+  }
+
+  function constrainOffset(){
+    const dispW=img.naturalWidth*cropState.scale, dispH=img.naturalHeight*cropState.scale;
+    const {boxLeft,boxTop,boxW,boxH}=cropState;
+    const minX=boxLeft+boxW-dispW, maxX=boxLeft;
+    const minY=boxTop+boxH-dispH, maxY=boxTop;
+    cropState.offsetX=Math.min(maxX,Math.max(minX,cropState.offsetX));
+    cropState.offsetY=Math.min(maxY,Math.max(minY,cropState.offsetY));
+  }
+
+  // ---------- Zoom ----------
+  zoomSlider.addEventListener('input',()=>{
+    const factor=parseFloat(zoomSlider.value)/100;
+    const prevScale=cropState.scale;
+    const newScale=cropState.minScale*factor;
+    const cx=cropState.boxLeft+cropState.boxW/2, cy=cropState.boxTop+cropState.boxH/2;
+    const imgCx=(cx-cropState.offsetX)/prevScale, imgCy=(cy-cropState.offsetY)/prevScale;
+    cropState.scale=newScale;
+    cropState.offsetX=cx-imgCx*newScale;
+    cropState.offsetY=cy-imgCy*newScale;
+    applyImageTransform();
+    updateResult();
+  });
+
+  // ---------- Drag image to pan ----------
+  function startPan(x,y){
+    dragInfo={ type:'pan', startX:x, startY:y, origX:cropState.offsetX, origY:cropState.offsetY };
+    cropStage.classList.add('dragging');
+  }
+  cropStage.addEventListener('mousedown',(e)=>{ if(e.target===cropStage||e.target===cropImg) startPan(e.clientX,e.clientY); });
+  cropStage.addEventListener('touchstart',(e)=>{ if(e.touches.length===1 && (e.target===cropStage||e.target===cropImg)){ startPan(e.touches[0].clientX,e.touches[0].clientY); } },{passive:true});
+
+  // ---------- Resize crop box via handles (free mode) or move box (any mode) ----------
+  cropBox.addEventListener('mousedown',(e)=>{
+    if(e.target.classList.contains('crop-handle')){
+      if(ratioMode!=='free') return; // fixed ratio: handles disabled, box size locked
+      dragInfo={ type:'resize', handle:e.target.dataset.handle, startX:e.clientX, startY:e.clientY,
+        origLeft:cropState.boxLeft, origTop:cropState.boxTop, origW:cropState.boxW, origH:cropState.boxH };
+    } else {
+      dragInfo={ type:'movebox', startX:e.clientX, startY:e.clientY, origLeft:cropState.boxLeft, origTop:cropState.boxTop };
+    }
+    e.stopPropagation();
+  });
+
+  window.addEventListener('mousemove',(e)=>handleMove(e.clientX,e.clientY));
+  window.addEventListener('mouseup',handleEnd);
+  window.addEventListener('touchmove',(e)=>{ if(dragInfo && e.touches.length===1){ handleMove(e.touches[0].clientX,e.touches[0].clientY); e.preventDefault(); } },{passive:false});
+  window.addEventListener('touchend',handleEnd);
+
+  function handleMove(x,y){
+    if(!dragInfo) return;
+    if(dragInfo.type==='pan'){
+      cropState.offsetX=dragInfo.origX+(x-dragInfo.startX);
+      cropState.offsetY=dragInfo.origY+(y-dragInfo.startY);
+      applyImageTransform();
+    } else if(dragInfo.type==='movebox'){
+      const stageW=cropStage.clientWidth, stageH=cropStage.clientHeight;
+      let newLeft=dragInfo.origLeft+(x-dragInfo.startX);
+      let newTop=dragInfo.origTop+(y-dragInfo.startY);
+      newLeft=Math.max(0,Math.min(stageW-cropState.boxW,newLeft));
+      newTop=Math.max(0,Math.min(stageH-cropState.boxH,newTop));
+      cropState.boxLeft=newLeft; cropState.boxTop=newTop;
+      renderBox();
+      applyImageTransform();
+    } else if(dragInfo.type==='resize'){
+      const dx=x-dragInfo.startX, dy=y-dragInfo.startY;
+      let {origLeft,origTop,origW,origH,handle}=dragInfo;
+      let newLeft=origLeft,newTop=origTop,newW=origW,newH=origH;
+      if(handle==='se'){ newW=origW+dx; newH=origH+dy; }
+      else if(handle==='sw'){ newW=origW-dx; newH=origH+dy; newLeft=origLeft+dx; }
+      else if(handle==='ne'){ newW=origW+dx; newH=origH-dy; newTop=origTop+dy; }
+      else if(handle==='nw'){ newW=origW-dx; newH=origH-dy; newLeft=origLeft+dx; newTop=origTop+dy; }
+      if(newW<40) newW=40; if(newH<40) newH=40;
+      cropState.boxLeft=newLeft; cropState.boxTop=newTop; cropState.boxW=newW; cropState.boxH=newH;
+      renderBox();
+      applyImageTransform();
+    }
+  }
+  function handleEnd(){
+    if(dragInfo){ dragInfo=null; cropStage.classList.remove('dragging'); updateResult(); }
+  }
+
+  window.addEventListener('resize',()=>{ if(img){ layoutStage(true); updateResult(); } });
+
+  // ---------- Auto-trim (detect uniform border and crop it away) ----------
+  autotrimBtn.addEventListener('click',()=>{
+    if(!img) return;
+    const trimmed=autoTrim(img);
+    if(!trimmed){ showToast('No clear border found to trim'); return; }
+    // Reposition crop box to exactly the trimmed region (in stage coordinates)
+    const stageW=cropStage.clientWidth, stageH=cropStage.clientHeight;
+    const dispW=img.naturalWidth*cropState.scale, dispH=img.naturalHeight*cropState.scale;
+    // Ensure image fits stage at a scale where the trimmed box is visible; recompute scale so trimmed region roughly fills crop box area
+    const trimAspect=trimmed.w/trimmed.h;
+    let boxW,boxH;
+    if(stageW/stageH > trimAspect){ boxH=stageH*0.8; boxW=boxH*trimAspect; } else { boxW=stageW*0.8; boxH=boxW/trimAspect; }
+    const newScale=boxW/trimmed.w;
+    cropState.scale=Math.max(newScale,cropState.minScale*0.5);
+    cropState.boxLeft=(stageW-boxW)/2; cropState.boxTop=(stageH-boxH)/2;
+    cropState.boxW=boxW; cropState.boxH=boxH;
+    cropState.offsetX=cropState.boxLeft - trimmed.x*cropState.scale;
+    cropState.offsetY=cropState.boxTop - trimmed.y*cropState.scale;
+    zoomSlider.value=Math.round((cropState.scale/cropState.minScale)*100);
+
+    // Switch to free ratio so the trimmed box isn't forced back to a fixed aspect
+    ratioMode='free';
+    ratioGrid.querySelectorAll('.ratio-chip').forEach(c=>c.classList.toggle('active', c.dataset.ratio==='free'));
+
+    renderBox();
+    applyImageTransform();
+    updateResult();
+    showToast('Trimmed border detected and cropped');
+  });
+
+  function autoTrim(image){
+    const maxDim=300; // work at reduced resolution for speed
+    const scale=Math.min(1,maxDim/Math.max(image.naturalWidth,image.naturalHeight));
+    const w=Math.max(1,Math.round(image.naturalWidth*scale)), h=Math.max(1,Math.round(image.naturalHeight*scale));
+    const canvas=document.createElement('canvas');
+    canvas.width=w; canvas.height=h;
+    const ctx=canvas.getContext('2d');
+    ctx.drawImage(image,0,0,w,h);
+    const data=ctx.getImageData(0,0,w,h).data;
+
+    // Sample the corner color as the assumed "background"
+    const bgR=data[0],bgG=data[1],bgB=data[2];
+    const THRESH=28; // per-channel tolerance
+
+    function isBg(x,y){
+      const i=(y*w+x)*4;
+      return Math.abs(data[i]-bgR)<THRESH && Math.abs(data[i+1]-bgG)<THRESH && Math.abs(data[i+2]-bgB)<THRESH;
+    }
+
+    let top=0,bottom=h-1,left=0,right=w-1;
+    const ROW_BG_RATIO=0.92;
+
+    function rowIsBg(y){ let c=0; for(let x=0;x<w;x++) if(isBg(x,y)) c++; return c/w>ROW_BG_RATIO; }
+    function colIsBg(x){ let c=0; for(let y=0;y<h;y++) if(isBg(x,y)) c++; return c/h>ROW_BG_RATIO; }
+
+    while(top<h-1 && rowIsBg(top)) top++;
+    while(bottom>0 && rowIsBg(bottom)) bottom--;
+    while(left<w-1 && colIsBg(left)) left++;
+    while(right>0 && colIsBg(right)) right--;
+
+    if(right<=left || bottom<=top) return null;
+    // Add a small safety margin so we don't clip the subject edge
+    const marginX=Math.round((right-left)*0.03), marginY=Math.round((bottom-top)*0.03);
+    left=Math.max(0,left-marginX); right=Math.min(w-1,right+marginX);
+    top=Math.max(0,top-marginY); bottom=Math.min(h-1,bottom+marginY);
+
+    // Convert back to original-image coordinates
+    const invScale=1/scale;
+    return {
+      x: left*invScale, y: top*invScale,
+      w: (right-left)*invScale, h: (bottom-top)*invScale
+    };
+  }
+
+  // ---------- Build output & result text ----------
+  function buildOutputCanvas(){
+    const {boxLeft,boxTop,boxW,boxH,scale,offsetX,offsetY}=cropState;
+    const srcX=(boxLeft-offsetX)/scale, srcY=(boxTop-offsetY)/scale;
+    const srcW=boxW/scale, srcH=boxH/scale;
+    const outW=Math.round(srcW), outH=Math.round(srcH);
+    const canvas=document.createElement('canvas');
+    canvas.width=outW; canvas.height=outH;
+    const ctx=canvas.getContext('2d');
+    ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
+    return canvas;
+  }
+
+  let resultTimer=null;
+  function updateResult(){
+    clearTimeout(resultTimer);
+    resultTimer=setTimeout(()=>{
+      if(!img) return;
+      const canvas=buildOutputCanvas();
+      const dataUrl=canvas.toDataURL('image/png');
+      const bytes=Math.round((dataUrl.length-dataUrl.indexOf(',')-1)*0.75);
+      lastOutput={ dataUrl, w:canvas.width, h:canvas.height };
+      resultText.textContent=canvas.width+'×'+canvas.height+'px · ≈'+formatBytes(bytes);
+      downloadBtn.disabled=false;
+    },120);
+  }
+
+  // ---------- File input wiring ----------
+  dropzone.addEventListener('click',()=>fileInput.click());
+  dropzone.addEventListener('keydown',(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();fileInput.click();}});
+  fileInput.addEventListener('change',(e)=>{if(e.target.files&&e.target.files[0])loadImageFile(e.target.files[0]);});
+
+  ['dragenter','dragover'].forEach(evt=>dropzone.addEventListener(evt,(e)=>{e.preventDefault();dropzone.classList.add('drag-over');}));
+  ['dragleave','drop'].forEach(evt=>dropzone.addEventListener(evt,(e)=>{e.preventDefault();dropzone.classList.remove('drag-over');}));
+  dropzone.addEventListener('drop',(e)=>{const file=e.dataTransfer.files&&e.dataTransfer.files[0];if(file)loadImageFile(file);});
+  ['dragover','drop'].forEach(evt=>window.addEventListener(evt,(e)=>e.preventDefault()));
+
+  window.addEventListener('paste',(e)=>{
+    const items=e.clipboardData&&e.clipboardData.items;if(!items)return;
+    for(const item of items){if(item.type.indexOf('image')!==-1){loadImageFile(item.getAsFile());break;}}
+  });
+
+  downloadBtn.addEventListener('click',()=>{
+    if(!lastOutput)return;
+    const a=document.createElement('a');
+    a.href=lastOutput.dataUrl;
+    a.download=currentName+'_cropped.png';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    showToast('Downloaded cropped image');
+  });
+
+  clearBtn.addEventListener('click',()=>{
+    img=null; lastOutput=null;
+    editorCard.classList.remove('show');
+    autotrimBanner.classList.remove('show');
+    cropImg.src='';
+    fileInput.value='';
+    cropState={ scale:1, minScale:1, offsetX:0, offsetY:0, boxLeft:0, boxTop:0, boxW:0, boxH:0 };
+  });
+})();
+</script>
+</body>
+</html>
