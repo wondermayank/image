@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thumbnail Maker — Free Online Tool</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#1a1a2e;--body:#4a4a68;--muted:#8888a0;--hairline:#e0e0ee;
+  --canvas:#f5f5fa;--surface:#ffffff;--surface-hover:#fafaff;
+  --primary:#573AFC;--primary-hover:#4a2ee0;--primary-light:rgba(87,58,252,.08);
+  --danger:#e74c3c;--success:#27ae60;--warning:#f39c12;
+  --radius:12px;--radius-sm:8px;--shadow:0 2px 12px rgba(26,26,46,.08);
+  --shadow-lg:0 8px 32px rgba(26,26,46,.12);--transition:.2s ease;
+  --font:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+}
+[data-theme="dark"]{
+  --ink:#e8e8f0;--body:#b0b0c8;--muted:#6868a0;--hairline:#2a2a40;
+  --canvas:#0f0f1a;--surface:#1a1a2e;--surface-hover:#222240;
+  --primary:#9A7AFB;--primary-hover:#8560f0;--primary-light:rgba(154,122,251,.12);
+  --shadow:0 2px 12px rgba(0,0,0,.3);--shadow-lg:0 8px 32px rgba(0,0,0,.4);
+}
+html{font-size:16px;scroll-behavior:smooth}
+body{font-family:var(--font);color:var(--body);background:var(--canvas);line-height:1.6;min-height:100vh;display:flex;flex-direction:column}
+a{color:var(--primary);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* Loading Screen */
+.loading-screen{position:fixed;inset:0;background:var(--canvas);display:flex;align-items:center;justify-content:center;z-index:9999;transition:opacity .4s ease}
+.loading-screen.hidden{opacity:0;pointer-events:none}
+.spinner{width:40px;height:40px;border:3px solid var(--hairline);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Header */
+.header{background:var(--surface);border-bottom:1px solid var(--hairline);padding:.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.brand{display:flex;align-items:center;gap:.6rem;font-weight:700;font-size:1.1rem;color:var(--ink)}
+.brand img{width:26px;height:26px;border-radius:6px}
+.theme-toggle{background:var(--surface);border:1px solid var(--hairline);border-radius:50%;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:var(--body);transition:var(--transition)}
+.theme-toggle:hover{border-color:var(--primary);color:var(--primary)}
+
+/* Main */
+.main{flex:1;max-width:900px;margin:0 auto;padding:2rem 1.5rem;width:100%}
+.main h1{font-size:2rem;font-weight:800;color:var(--ink);margin-bottom:.5rem;text-align:center}
+.lead{color:var(--muted);text-align:center;margin-bottom:2rem;font-size:1.05rem}
+
+/* Dropzone */
+.dropzone{border:2px dashed var(--hairline);border-radius:var(--radius);padding:3rem 2rem;text-align:center;cursor:pointer;transition:var(--transition);background:var(--surface);margin-bottom:1.5rem}
+.dropzone:hover,.dropzone.dragover{border-color:var(--primary);background:var(--primary-light)}
+.dropzone-icon{font-size:2.5rem;margin-bottom:.5rem}
+.dropzone-text{color:var(--muted);font-size:.95rem}
+.dropzone-text strong{color:var(--primary)}
+
+/* Editor Card */
+.editor-card{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius);padding:1.5rem;box-shadow:var(--shadow);margin-bottom:1.5rem;display:none}
+.editor-card.visible{display:block}
+.editor-card h3{color:var(--ink);font-size:1.1rem;margin-bottom:1rem}
+
+/* Size Options */
+.size-options{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.5rem}
+.size-btn{padding:.5rem 1rem;border:2px solid var(--hairline);border-radius:var(--radius-sm);background:var(--surface);cursor:pointer;font-size:.85rem;font-weight:600;color:var(--body);transition:var(--transition);font-family:var(--font)}
+.size-btn:hover{border-color:var(--primary);color:var(--primary)}
+.size-btn.active{border-color:var(--primary);background:var(--primary-light);color:var(--primary)}
+
+.custom-size{display:none;gap:1rem;align-items:center;margin-bottom:1.5rem}
+.custom-size.visible{display:flex}
+.custom-size label{font-size:.85rem;color:var(--muted);font-weight:600}
+.custom-size input{width:80px;padding:.4rem;border:1px solid var(--hairline);border-radius:var(--radius-sm);font-size:.85rem;background:var(--canvas);color:var(--ink);font-family:var(--font)}
+
+/* Canvas Preview */
+.preview-area{position:relative;background:var(--canvas);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:center;min-height:200px}
+.preview-area canvas{max-width:100%;max-height:400px;display:block}
+
+/* Format Select */
+.format-row{display:flex;align-items:center;gap:1rem;margin-bottom:1rem;flex-wrap:wrap}
+.format-row label{font-size:.85rem;color:var(--muted);font-weight:600}
+.format-select{padding:.4rem .8rem;border:1px solid var(--hairline);border-radius:var(--radius-sm);background:var(--canvas);color:var(--ink);font-family:var(--font);font-size:.85rem}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.65rem 1.5rem;border:none;border-radius:var(--radius-sm);font-size:.9rem;font-weight:600;cursor:pointer;transition:var(--transition);font-family:var(--font)}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-hover);transform:translateY(-1px);box-shadow:var(--shadow)}
+.btn-secondary{background:var(--canvas);color:var(--body);border:1px solid var(--hairline)}
+.btn-secondary:hover{border-color:var(--primary);color:var(--primary)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-row{display:flex;gap:.75rem;flex-wrap:wrap}
+
+/* Toast */
+.toast-container{position:fixed;bottom:1.5rem;right:1.5rem;z-index:9000;display:flex;flex-direction:column;gap:.5rem}
+.toast{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius-sm);padding:.75rem 1.25rem;box-shadow:var(--shadow-lg);font-size:.85rem;color:var(--ink);display:flex;align-items:center;gap:.5rem;animation:toastIn .3s ease;max-width:340px}
+.toast.success{border-left:4px solid var(--success)}
+.toast.error{border-left:4px solid var(--danger)}
+.toast.info{border-left:4px solid var(--primary)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+/* FAQ */
+.faq-section{margin-top:3rem;padding-top:2rem;border-top:1px solid var(--hairline)}
+.faq-section h2{font-size:1.4rem;color:var(--ink);margin-bottom:1.5rem;text-align:center}
+.faq-item{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius-sm);margin-bottom:.75rem;overflow:hidden}
+.faq-question{padding:1rem 1.25rem;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:600;color:var(--ink);font-size:.95rem;transition:var(--transition)}
+.faq-question:hover{background:var(--surface-hover)}
+.faq-question .arrow{transition:transform .2s ease;font-size:.8rem}
+.faq-item.open .faq-question .arrow{transform:rotate(180deg)}
+.faq-answer{max-height:0;overflow:hidden;transition:max-height .3s ease}
+.faq-item.open .faq-answer{max-height:500px}
+.faq-answer p{padding:0 1.25rem 1rem;color:var(--body);font-size:.9rem;line-height:1.7}
+
+/* Footer */
+.footer{text-align:center;padding:2rem 1.5rem;border-top:1px solid var(--hairline);margin-top:auto;color:var(--muted);font-size:.8rem}
+.footer a{color:var(--primary)}
+
+/* Info Stats */
+.stats-row{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+.stat-box{background:var(--canvas);border-radius:var(--radius-sm);padding:.75rem 1rem;flex:1;min-width:120px;text-align:center}
+.stat-label{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem}
+.stat-value{font-size:1.1rem;font-weight:700;color:var(--ink)}
+
+@media(max-width:600px){
+  .main h1{font-size:1.5rem}
+  .dropzone{padding:2rem 1rem}
+  .size-options{flex-direction:column}
+  .custom-size{flex-direction:column;align-items:flex-start}
+  .stats-row{flex-direction:column}
+}
+</style>
+</head>
+<body>
+<div class="loading-screen" id="loadingScreen"><div class="spinner"></div></div>
+
+<header class="header">
+  <div class="brand"><img src="https://wondermayank.github.io/favicon.svg" alt="Wondermayank"><span>Thumbnail Maker</span></div>
+  <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+</header>
+
+<main class="main">
+  <h1>Thumbnail Maker</h1>
+  <p class="lead">Create perfect thumbnails for YouTube, blogs, and social media — fast and free.</p>
+
+  <div class="dropzone" id="dropzone">
+    <div class="dropzone-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
+    <p class="dropzone-text">Drag & drop an image here, <strong>click to browse</strong>, or paste from clipboard</p>
+    <input type="file" id="fileInput" accept="image/*" hidden>
+  </div>
+
+  <div class="editor-card" id="editorCard">
+    <h3>Choose Thumbnail Size</h3>
+    <div class="size-options" id="sizeOptions">
+      <button class="size-btn active" data-w="150" data-h="150">150 × 150</button>
+      <button class="size-btn" data-w="300" data-h="300">300 × 300</button>
+      <button class="size-btn" data-w="640" data-h="360">640 × 360</button>
+      <button class="size-btn" data-w="1280" data-h="720">1280 × 720</button>
+      <button class="size-btn" data-custom="1">Custom</button>
+    </div>
+    <div class="custom-size" id="customSize">
+      <label>Width: <input type="number" id="customW" value="200" min="10" max="4000"></label>
+      <label>Height: <input type="number" id="customH" value="200" min="10" max="4000"></label>
+    </div>
+
+    <div class="preview-area" id="previewArea">
+      <canvas id="previewCanvas"></canvas>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-box"><div class="stat-label">Original</div><div class="stat-value" id="origSize">—</div></div>
+      <div class="stat-box"><div class="stat-label">Thumbnail</div><div class="stat-value" id="thumbSize">—</div></div>
+      <div class="stat-box"><div class="stat-label">Dimensions</div><div class="stat-value" id="thumbDims">—</div></div>
+    </div>
+
+    <div class="format-row">
+      <label>Format:</label>
+      <select class="format-select" id="formatSelect">
+        <option value="image/png">PNG</option>
+        <option value="image/jpeg">JPEG</option>
+      </select>
+      <label>Quality:</label>
+      <input type="range" id="qualityRange" min="1" max="100" value="90" style="width:120px">
+      <span id="qualityVal">90%</span>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="downloadBtn">⬇ Download Thumbnail</button>
+      <button class="btn btn-secondary" id="resetBtn">↺ Reset</button>
+    </div>
+  </div>
+</main>
+
+<section class="faq-section main">
+  <h2>Frequently Asked Questions</h2>
+  <div class="faq-item">
+    <div class="faq-question">What size should a YouTube thumbnail be?<span class="arrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+    <div class="faq-answer"><p>YouTube recommends 1280×720 pixels (16:9 ratio) with a minimum width of 640px. The 1280×720 preset in this tool is perfect for YouTube thumbnails.</p></div>
+  </div>
+  <div class="faq-item">
+    <div class="faq-question">What's the best thumbnail size for blog posts?<span class="arrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+    <div class="faq-answer"><p>For blog featured images, 1200×630 pixels works well for most platforms and social sharing. For smaller inline thumbnails, 300×300 or 150×150 are common choices.</p></div>
+  </div>
+  <div class="faq-item">
+    <div class="faq-question">Should I use PNG or JPEG for thumbnails?<span class="arrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+    <div class="faq-answer"><p>JPEG is usually better for photo-based thumbnails because it produces smaller files. PNG is better when you need transparency or have graphics with sharp edges and text.</p></div>
+  </div>
+  <div class="faq-item">
+    <div class="faq-question">What is the ideal quality setting for JPEG thumbnails?<span class="arrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+    <div class="faq-answer"><p>A quality setting of 80-90% gives the best balance between file size and visual quality. Below 70%, compression artifacts become noticeable. For web use, 85% is a great default.</p></div>
+  </div>
+  <div class="faq-item">
+    <div class="faq-question">Can I make circular or rounded thumbnails?<span class="arrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+    <div class="faq-answer"><p>This tool creates square or rectangular thumbnails. To make circular thumbnails, you can use CSS border-radius on your website, or use our Profile Picture Crop tool which supports circular cropping.</p></div>
+  </div>
+</section>
+
+<footer class="footer">
+  <p>Thumbnail Maker — Free, private, runs entirely in your browser. No uploads to any server.</p>
+</footer>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function(){
+  // Theme
+  const html=document.documentElement,themeBtn=document.getElementById('themeToggle');
+  const saved=localStorage.getItem('theme');if(saved)html.setAttribute('data-theme',saved);
+  function updateIcon(){themeBtn.innerHTML=html.getAttribute('data-theme')==='dark'?'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>':'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'}
+  updateIcon();
+  themeBtn.addEventListener('click',()=>{const t=html.getAttribute('data-theme')==='dark'?'':'dark';html.setAttribute('data-theme',t);localStorage.setItem('theme',t);updateIcon()});
+
+  // Loading
+  window.addEventListener('load',()=>setTimeout(()=>document.getElementById('loadingScreen').classList.add('hidden'),300));
+
+  // Toast
+  function showToast(msg,type='info'){
+    const c=document.getElementById('toastContainer'),t=document.createElement('div');
+    t.className='toast '+type;t.textContent=msg;c.appendChild(t);
+    setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(20px)';setTimeout(()=>t.remove(),300)},3000);
+  }
+
+  // FAQ
+  document.querySelectorAll('.faq-question').forEach(q=>q.addEventListener('click',()=>q.parentElement.classList.toggle('open')));
+
+  // State
+  let srcImg=null,thumbW=150,thumbH=150,format='image/png',quality=0.9;
+  const dropzone=document.getElementById('dropzone'),fileInput=document.getElementById('fileInput');
+  const editorCard=document.getElementById('editorCard'),canvas=document.getElementById('previewCanvas');
+  const ctx=canvas.getContext('2d');
+
+  function formatBytes(b){if(b<1024)return b+' B';if(b<1048576)return(b/1024).toFixed(1)+' KB';return(b/1048576).toFixed(2)+' MB'}
+
+  function loadImage(file){
+    if(!file||!file.type.startsWith('image/')){showToast('Please select a valid image file.','error');return}
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{srcImg=img;editorCard.classList.add('visible');document.getElementById('origSize').textContent=formatBytes(file.size);renderThumbnail()};
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function renderThumbnail(){
+    if(!srcImg)return;
+    canvas.width=thumbW;canvas.height=thumbH;
+    const scale=Math.max(thumbW/srcImg.width,thumbH/srcImg.height);
+    const sw=thumbW/scale,sh=thumbH/scale;
+    const sx=(srcImg.width-sw)/2,sy=(srcImg.height-sh)/2;
+    ctx.drawImage(srcImg,sx,sy,sw,sh,0,0,thumbW,thumbH);
+    canvas.toBlob(blob=>{
+      document.getElementById('thumbSize').textContent=formatBytes(blob.size);
+      document.getElementById('thumbDims').textContent=thumbW+'×'+thumbH;
+    },format,quality);
+  }
+
+  // Dropzone
+  dropzone.addEventListener('click',()=>fileInput.click());
+  fileInput.addEventListener('change',e=>{if(e.target.files[0])loadImage(e.target.files[0])});
+  dropzone.addEventListener('dragover',e=>{e.preventDefault();dropzone.classList.add('dragover')});
+  dropzone.addEventListener('dragleave',()=>dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop',e=>{e.preventDefault();dropzone.classList.remove('dragover');if(e.dataTransfer.files[0])loadImage(e.dataTransfer.files[0])});
+  document.addEventListener('paste',e=>{const items=e.clipboardData?.items;if(!items)return;for(const it of items)if(it.type.startsWith('image/')){loadImage(it.getAsFile());break}});
+
+  // Size buttons
+  document.querySelectorAll('.size-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.size-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const customDiv=document.getElementById('customSize');
+      if(btn.dataset.custom){customDiv.classList.add('visible');thumbW=parseInt(document.getElementById('customW').value)||200;thumbH=parseInt(document.getElementById('customH').value)||200}
+      else{customDiv.classList.remove('visible');thumbW=parseInt(btn.dataset.w);thumbH=parseInt(btn.dataset.h)}
+      renderThumbnail();
+    });
+  });
+  document.getElementById('customW').addEventListener('input',e=>{thumbW=parseInt(e.target.value)||200;renderThumbnail()});
+  document.getElementById('customH').addEventListener('input',e=>{thumbH=parseInt(e.target.value)||200;renderThumbnail()});
+
+  // Format & Quality
+  document.getElementById('formatSelect').addEventListener('change',e=>{format=e.target.value;renderThumbnail()});
+  const qRange=document.getElementById('qualityRange'),qVal=document.getElementById('qualityVal');
+  qRange.addEventListener('input',()=>{quality=qRange.value/100;qVal.textContent=qRange.value+'%';renderThumbnail()});
+
+  // Download
+  document.getElementById('downloadBtn').addEventListener('click',()=>{
+    if(!srcImg){showToast('Please upload an image first.','error');return}
+    const ext=format==='image/png'?'.png':'.jpeg';
+    const a=document.createElement('a');a.download='thumbnail-'+thumbW+'x'+thumbH+ext;
+    canvas.toBlob(blob=>{a.href=URL.createObjectURL(blob);a.click();URL.revokeObjectURL(a.href);showToast('Thumbnail downloaded!','success')},format,quality);
+  });
+
+  // Reset
+  document.getElementById('resetBtn').addEventListener('click',()=>{srcImg=null;editorCard.classList.remove('visible');ctx.clearRect(0,0,canvas.width,canvas.height);fileInput.value='';showToast('Reset complete.','info')});
+})();
+</script>
+</body>
+</html>
