@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Social Media Resize — Free Online Tool</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#1a1a2e;--body:#4a4a68;--muted:#8888a0;--hairline:#e0e0ee;
+  --canvas:#f5f5fa;--surface:#ffffff;--surface-hover:#fafaff;
+  --primary:#573AFC;--primary-hover:#4a2ee0;--primary-light:rgba(87,58,252,.08);
+  --danger:#e74c3c;--success:#27ae60;--warning:#f39c12;
+  --radius:12px;--radius-sm:8px;--shadow:0 2px 12px rgba(26,26,46,.08);
+  --shadow-lg:0 8px 32px rgba(26,26,46,.12);--transition:.2s ease;
+  --font:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+}
+[data-theme="dark"]{
+  --ink:#e8e8f0;--body:#b0b0c8;--muted:#6868a0;--hairline:#2a2a40;
+  --canvas:#0f0f1a;--surface:#1a1a2e;--surface-hover:#222240;
+  --primary:#9A7AFB;--primary-hover:#8560f0;--primary-light:rgba(154,122,251,.12);
+  --shadow:0 2px 12px rgba(0,0,0,.3);--shadow-lg:0 8px 32px rgba(0,0,0,.4);
+}
+html{font-size:16px;scroll-behavior:smooth}
+body{font-family:var(--font);color:var(--body);background:var(--canvas);line-height:1.6;min-height:100vh;display:flex;flex-direction:column}
+a{color:var(--primary);text-decoration:none}
+a:hover{text-decoration:underline}
+.loading-screen{position:fixed;inset:0;background:var(--canvas);display:flex;align-items:center;justify-content:center;z-index:9999;transition:opacity .4s ease}
+.loading-screen.hidden{opacity:0;pointer-events:none}
+.spinner{width:40px;height:40px;border:3px solid var(--hairline);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.header{background:var(--surface);border-bottom:1px solid var(--hairline);padding:.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.brand{display:flex;align-items:center;gap:.6rem;font-weight:700;font-size:1.1rem;color:var(--ink)}
+.brand img{width:26px;height:26px;border-radius:6px}
+.theme-toggle{background:var(--surface);border:1px solid var(--hairline);border-radius:50%;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:var(--body);transition:var(--transition)}
+.theme-toggle:hover{border-color:var(--primary);color:var(--primary)}
+.main{flex:1;max-width:900px;margin:0 auto;padding:2rem 1.5rem;width:100%}
+.main h1{font-size:2rem;font-weight:800;color:var(--ink);margin-bottom:.5rem;text-align:center}
+.lead{color:var(--muted);text-align:center;margin-bottom:2rem;font-size:1.05rem}
+.dropzone{border:2px dashed var(--hairline);border-radius:var(--radius);padding:3rem 2rem;text-align:center;cursor:pointer;transition:var(--transition);background:var(--surface);margin-bottom:1.5rem}
+.dropzone:hover,.dropzone.dragover{border-color:var(--primary);background:var(--primary-light)}
+.dropzone-icon{font-size:2.5rem;margin-bottom:.5rem}
+.dropzone-text{color:var(--muted);font-size:.95rem}
+.dropzone-text strong{color:var(--primary)}
+.editor-card{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius);padding:1.5rem;box-shadow:var(--shadow);margin-bottom:1.5rem;display:none}
+.editor-card.visible{display:block}
+.editor-card h3{color:var(--ink);font-size:1.1rem;margin-bottom:1rem}
+.preset-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.75rem;margin-bottom:1.5rem}
+.preset-btn{padding:.75rem 1rem;border:2px solid var(--hairline);border-radius:var(--radius-sm);background:var(--surface);cursor:pointer;text-align:left;transition:var(--transition);font-family:var(--font)}
+.preset-btn:hover{border-color:var(--primary)}
+.preset-btn.active{border-color:var(--primary);background:var(--primary-light)}
+.preset-btn .preset-name{font-weight:700;font-size:.85rem;color:var(--ink);display:block}
+.preset-btn .preset-dims{font-size:.75rem;color:var(--muted);margin-top:.15rem}
+.preview-area{position:relative;background:var(--canvas);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:center;min-height:200px}
+.preview-area canvas{max-width:100%;max-height:400px;display:block;cursor:move}
+.stats-row{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+.stat-box{background:var(--canvas);border-radius:var(--radius-sm);padding:.75rem 1rem;flex:1;min-width:120px;text-align:center}
+.stat-label{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem}
+.stat-value{font-size:1.1rem;font-weight:700;color:var(--ink)}
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.65rem 1.5rem;border:none;border-radius:var(--radius-sm);font-size:.9rem;font-weight:600;cursor:pointer;transition:var(--transition);font-family:var(--font)}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-hover);transform:translateY(-1px);box-shadow:var(--shadow)}
+.btn-secondary{background:var(--canvas);color:var(--body);border:1px solid var(--hairline)}
+.btn-secondary:hover{border-color:var(--primary);color:var(--primary)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-row{display:flex;gap:.75rem;flex-wrap:wrap}
+.format-row{display:flex;align-items:center;gap:1rem;margin-bottom:1rem;flex-wrap:wrap}
+.format-row label{font-size:.85rem;color:var(--muted);font-weight:600}
+.format-select{padding:.4rem .8rem;border:1px solid var(--hairline);border-radius:var(--radius-sm);background:var(--canvas);color:var(--ink);font-family:var(--font);font-size:.85rem}
+.toast-container{position:fixed;bottom:1.5rem;right:1.5rem;z-index:9000;display:flex;flex-direction:column;gap:.5rem}
+.toast{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius-sm);padding:.75rem 1.25rem;box-shadow:var(--shadow-lg);font-size:.85rem;color:var(--ink);display:flex;align-items:center;gap:.5rem;animation:toastIn .3s ease;max-width:340px}
+.toast.success{border-left:4px solid var(--success)}
+.toast.error{border-left:4px solid var(--danger)}
+.toast.info{border-left:4px solid var(--primary)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.faq-section{margin-top:3rem;padding-top:2rem;border-top:1px solid var(--hairline)}
+.faq-section h2{font-size:1.4rem;color:var(--ink);margin-bottom:1.5rem;text-align:center}
+.faq-item{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius-sm);margin-bottom:.75rem;overflow:hidden}
+.faq-question{padding:1rem 1.25rem;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:600;color:var(--ink);font-size:.95rem;transition:var(--transition)}
+.faq-question:hover{background:var(--surface-hover)}
+.faq-question .arrow{transition:transform .2s ease;font-size:.8rem}
+.faq-item.open .faq-question .arrow{transform:rotate(180deg)}
+.faq-answer{max-height:0;overflow:hidden;transition:max-height .3s ease}
+.faq-item.open .faq-answer{max-height:500px}
+.faq-answer p{padding:0 1.25rem 1rem;color:var(--body);font-size:.9rem;line-height:1.7}
+.footer{text-align:center;padding:2rem 1.5rem;border-top:1px solid var(--hairline);margin-top:auto;color:var(--muted);font-size:.8rem}
+.footer a{color:var(--primary)}
+@media(max-width:600px){
+  .main h1{font-size:1.5rem}
+  .dropzone{padding:2rem 1rem}
+  .preset-grid{grid-template-columns:1fr 1fr}
+  .stats-row{flex-direction:column}
+}
+</style>
+</head>
+<body>
+<div class="loading-screen" id="loadingScreen"><div class="spinner"></div></div>
+<header class="header">
+  <div class="brand"><img src="https://wondermayank.github.io/favicon.svg" alt="Wondermayank"><span>Social Media Resize</span></div>
+  <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+</header>
+<main class="main">
+  <h1>Social Media Resize</h1>
+  <p class="lead">Resize images to perfect dimensions for every social platform — instantly in your browser.</p>
+
+  <div class="dropzone" id="dropzone">
+    <div class="dropzone-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
+    <p class="dropzone-text">Drag & drop an image here, <strong>click to browse</strong>, or paste from clipboard</p>
+    <input type="file" id="fileInput" accept="image/*" hidden>
+  </div>
+
+  <div class="editor-card" id="editorCard">
+    <h3>Select Platform</h3>
+    <div class="preset-grid" id="presetGrid">
+      <button class="preset-btn active" data-w="1080" data-h="1080">
+        <span class="preset-name"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Instagram Post</span>
+        <span class="preset-dims">1080 × 1080</span>
+      </button>
+      <button class="preset-btn" data-w="1080" data-h="1920">
+        <span class="preset-name"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> Instagram Story</span>
+        <span class="preset-dims">1080 × 1920</span>
+      </button>
+      <button class="preset-btn" data-w="1280" data-h="720">
+        <span class="preset-name"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> YouTube Thumbnail</span>
+        <span class="preset-dims">1280 × 720</span>
+      </button>
+      <button class="preset-btn" data-w="820" data-h="312">
+        <span class="preset-name"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Facebook Cover</span>
+        <span class="preset-dims">820 × 312</span>
+      </button>
+      <button class="preset-btn" data-w="1500" data-h="500">
+        <span class="preset-name"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/></svg> Twitter Header</span>
+        <span class="preset-dims">1500 × 500</span>
+      </button>
+      <button class="preset-btn" data-w="1584" data-h="396">
+        <span class="preset-name"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg> LinkedIn Banner</span>
+        <span class="preset-dims">1584 × 396</span>
+      </button>
+    </div>
+
+    <p style="font-size:.8rem;color:var(--muted);margin-bottom:1rem;text-align:center">Drag image to reposition within the frame</p>
+
+    <div class="preview-area" id="previewArea">
+      <canvas id="previewCanvas"></canvas>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-box"><div class="stat-label">Original</div><div class="stat-value" id="origSize">—</div></div>
+      <div class="stat-box"><div class="stat-label">Resized</div><div class="stat-value" id="resizedSize">—</div></div>
+      <div class="stat-box"><div class="stat-label">Dimensions</div><div class="stat-value" id="resizedDims">—</div></div>
+    </div>
+
+    <div class="format-row">
+      <label>Format:</label>
+      <select class="format-select" id="formatSelect">
+        <option value="image/png">PNG</option>
+        <option value="image/jpeg" selected>JPEG</option>
+      </select>
+      <label>Quality:</label>
+      <input type="range" id="qualityRange" min="1" max="100" value="90" style="width:120px">
+      <span id="qualityVal">90%</span>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="downloadBtn">⬇ Download Resized</button>
+      <button class="btn btn-secondary" id="resetBtn">↺ Reset</button>
+    </div>
+  </div>
+</main>
+
+<section class="faq-section main">
+  <h2>Frequently Asked Questions</h2>
+  <div class="faq-item"><div class="faq-question">What size should Instagram posts be?<span class="arrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></div><div class="faq-answer"><p>Instagram recommends 1080×1080 pixels for square posts. For portrait posts, use 1080×1350. Stories should be 1080×1920 (9:16 ratio).</p></div></div>
+  <div class="faq-item"><div class="faq-question">What's the best size for a YouTube thumbnail?<span class="arrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></div><div class="faq-answer"><p>YouTube recommends 1280×720 pixels (16:9 ratio) with a minimum width of 640px. Keep file size under 2MB for best results.</p></div></div>
+  <div class="faq-item"><div class="faq-question">What are the correct dimensions for a Facebook cover photo?<span class="arrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></div><div class="faq-answer"><p>Facebook cover photos display at 820×312 pixels on desktop and 640×360 on mobile. Use 820×312 and keep important content centered for cross-device compatibility.</p></div></div>
+  <div class="faq-item"><div class="faq-question">What size should a Twitter/X header image be?<span class="arrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></div><div class="faq-answer"><p>Twitter recommends 1500×500 pixels for header images. The aspect ratio is 3:1. Keep in mind the bottom portion may be slightly cropped on some devices.</p></div></div>
+  <div class="faq-item"><div class="faq-question">What's the recommended LinkedIn banner size?<span class="arrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></div><div class="faq-answer"><p>LinkedIn recommends 1584×396 pixels for personal profile banners. For company pages, use 1128×191. The profile photo overlaps the bottom-left of the banner, so keep that area clear.</p></div></div>
+</section>
+
+<footer class="footer"><p>Social Media Resize — Free, private, runs entirely in your browser. No uploads to any server.</p></footer>
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function(){
+  const html=document.documentElement,themeBtn=document.getElementById('themeToggle');
+  const saved=localStorage.getItem('theme');if(saved)html.setAttribute('data-theme',saved);
+  function updateIcon(){themeBtn.innerHTML=html.getAttribute('data-theme')==='dark'?'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>':'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'}
+  updateIcon();
+  themeBtn.addEventListener('click',()=>{const t=html.getAttribute('data-theme')==='dark'?'':'dark';html.setAttribute('data-theme',t);localStorage.setItem('theme',t);updateIcon()});
+  window.addEventListener('load',()=>setTimeout(()=>document.getElementById('loadingScreen').classList.add('hidden'),300));
+  function showToast(msg,type='info'){const c=document.getElementById('toastContainer'),t=document.createElement('div');t.className='toast '+type;t.textContent=msg;c.appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(20px)';setTimeout(()=>t.remove(),300)},3000)}
+  document.querySelectorAll('.faq-question').forEach(q=>q.addEventListener('click',()=>q.parentElement.classList.toggle('open')));
+
+  let srcImg=null,targetW=1080,targetH=1080,format='image/jpeg',quality=0.9;
+  let offsetX=0,offsetY=0,dragging=false,dragStartX=0,dragStartY=0,dragOffsetX=0,dragOffsetY=0;
+  const dropzone=document.getElementById('dropzone'),fileInput=document.getElementById('fileInput');
+  const editorCard=document.getElementById('editorCard'),canvas=document.getElementById('previewCanvas');
+  const ctx=canvas.getContext('2d');
+
+  function formatBytes(b){if(b<1024)return b+' B';if(b<1048576)return(b/1024).toFixed(1)+' KB';return(b/1048576).toFixed(2)+' MB'}
+
+  function loadImage(file){
+    if(!file||!file.type.startsWith('image/')){showToast('Please select a valid image file.','error');return}
+    const reader=new FileReader();
+    reader.onload=e=>{const img=new Image();img.onload=()=>{srcImg=img;offsetX=0;offsetY=0;editorCard.classList.add('visible');document.getElementById('origSize').textContent=formatBytes(file.size);renderPreview()};img.src=e.target.result};
+    reader.readAsDataURL(file);
+  }
+
+  function renderPreview(){
+    if(!srcImg)return;
+    canvas.width=targetW;canvas.height=targetH;
+    const displayW=Math.min(targetW,600);
+    const scale=displayW/targetW;
+    canvas.style.width=displayW+'px';
+    canvas.style.height=(targetH*scale)+'px';
+    ctx.fillStyle='#222';ctx.fillRect(0,0,targetW,targetH);
+    const imgScale=Math.max(targetW/srcImg.width,targetH/srcImg.height);
+    const drawW=srcImg.width*imgScale,drawH=srcImg.height*imgScale;
+    const cx=(targetW-drawW)/2+offsetX,cy=(targetH-drawH)/2+offsetY;
+    ctx.drawImage(srcImg,cx,cy,drawW,drawH);
+    canvas.toBlob(blob=>{document.getElementById('resizedSize').textContent=formatBytes(blob.size);document.getElementById('resizedDims').textContent=targetW+'×'+targetH},format,quality);
+  }
+
+  dropzone.addEventListener('click',()=>fileInput.click());
+  fileInput.addEventListener('change',e=>{if(e.target.files[0])loadImage(e.target.files[0])});
+  dropzone.addEventListener('dragover',e=>{e.preventDefault();dropzone.classList.add('dragover')});
+  dropzone.addEventListener('dragleave',()=>dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop',e=>{e.preventDefault();dropzone.classList.remove('dragover');if(e.dataTransfer.files[0])loadImage(e.dataTransfer.files[0])});
+  document.addEventListener('paste',e=>{const items=e.clipboardData?.items;if(!items)return;for(const it of items)if(it.type.startsWith('image/')){loadImage(it.getAsFile());break}});
+
+  // Drag to reposition
+  canvas.addEventListener('mousedown',e=>{dragging=true;dragStartX=e.clientX;dragStartY=e.clientY;dragOffsetX=offsetX;dragOffsetY=offsetY});
+  canvas.addEventListener('mousemove',e=>{if(!dragging)return;offsetX=dragOffsetX+(e.clientX-dragStartX);offsetY=dragOffsetY+(e.clientY-dragStartY);renderPreview()});
+  canvas.addEventListener('mouseup',()=>dragging=false);
+  canvas.addEventListener('mouseleave',()=>dragging=false);
+  canvas.addEventListener('touchstart',e=>{const t=e.touches[0];dragging=true;dragStartX=t.clientX;dragStartY=t.clientY;dragOffsetX=offsetX;dragOffsetY=offsetY},{passive:true});
+  canvas.addEventListener('touchmove',e=>{if(!dragging)return;const t=e.touches[0];offsetX=dragOffsetX+(t.clientX-dragStartX);offsetY=dragOffsetY+(t.clientY-dragStartY);renderPreview()},{passive:true});
+  canvas.addEventListener('touchend',()=>dragging=false);
+
+  document.querySelectorAll('.preset-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      targetW=parseInt(btn.dataset.w);targetH=parseInt(btn.dataset.h);offsetX=0;offsetY=0;renderPreview();
+    });
+  });
+
+  document.getElementById('formatSelect').addEventListener('change',e=>{format=e.target.value;renderPreview()});
+  const qRange=document.getElementById('qualityRange'),qVal=document.getElementById('qualityVal');
+  qRange.addEventListener('input',()=>{quality=qRange.value/100;qVal.textContent=qRange.value+'%';renderPreview()});
+
+  document.getElementById('downloadBtn').addEventListener('click',()=>{
+    if(!srcImg){showToast('Please upload an image first.','error');return}
+    const ext=format==='image/png'?'.png':'.jpeg';
+    const a=document.createElement('a');a.download='social-'+targetW+'x'+targetH+ext;
+    canvas.toBlob(blob=>{a.href=URL.createObjectURL(blob);a.click();URL.revokeObjectURL(a.href);showToast('Image downloaded!','success')},format,quality);
+  });
+
+  document.getElementById('resetBtn').addEventListener('click',()=>{srcImg=null;editorCard.classList.remove('visible');ctx.clearRect(0,0,canvas.width,canvas.height);fileInput.value='';showToast('Reset complete.','info')});
+})();
+</script>
+</body>
+</html>
