@@ -272,12 +272,21 @@
 <div class="toast" id="toast">Done!</div>
 
 <script type="module">
-// ---- @imgly/background-removal via jsDelivr ESM ----
-const LIB_URL = 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/+esm';
-let removeBackgroundFn = null;
-let resultBlob = null;          // the transparent PNG blob
+// ---- Transformers.js (RMBG-1.4) — no SharedArrayBuffer / no COOP+COEP needed ----
+// Works on any static host including GitHub Pages.
+import {
+  env, AutoModel, AutoProcessor, RawImage
+} from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.2/+esm';
+
+// Force single-threaded WASM — avoids the SharedArrayBuffer requirement entirely
+env.backends.onnx.wasm.proxy = false;
+env.backends.onnx.wasm.numThreads = 1;
+
+const MODEL_ID = 'briaai/RMBG-1.4';
+
+let model = null, processor = null;
+let resultBlob = null;
 let currentFileName = 'image';
-let resultWidth = 0, resultHeight = 0;
 
 // ---- Loader ----
 const loadScreen = document.getElementById('loadScreen');
@@ -315,114 +324,167 @@ let bgMode = 'transparent';
 
 function showToast(msg){ toast.textContent=msg; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),1800); }
 function setProgress(pct, label){
-  progressFill.style.width = pct+'%';
+  progressFill.style.width = Math.min(pct,100)+'%';
   progressLabel.textContent = label;
-  progressPct.textContent   = Math.round(pct)+'%';
+  progressPct.textContent   = Math.round(Math.min(pct,100))+'%';
 }
 
-// ---- BG mode ----
+// ---- BG mode chips ----
 document.querySelectorAll('.bg-chip').forEach(chip=>{
   chip.addEventListener('click',()=>{
     document.querySelectorAll('.bg-chip').forEach(c=>c.classList.remove('active'));
     chip.classList.add('active');
     bgMode = chip.dataset.bg;
-    updateResultPreview();
+    renderWithBg();
   });
 });
 bgColorPicker.addEventListener('input', ()=>{
   document.querySelectorAll('.bg-chip').forEach(c=>c.classList.remove('active'));
   document.querySelector('.bg-chip[data-bg="custom"]').classList.add('active');
   bgMode = 'custom';
-  updateResultPreview();
+  renderWithBg();
 });
 
-function updateResultPreview(){
+// Renders resultBlob onto the preview img with chosen bg
+function renderWithBg(){
   if(!resultBlob) return;
   if(bgMode==='transparent'){
     resultImg.src = URL.createObjectURL(resultBlob);
     return;
   }
-  const img = new Image();
+  const tmp = new Image();
   const blobUrl = URL.createObjectURL(resultBlob);
-  img.onload = ()=>{
+  tmp.onload = ()=>{
     const c = document.createElement('canvas');
-    c.width=img.naturalWidth; c.height=img.naturalHeight;
+    c.width=tmp.naturalWidth; c.height=tmp.naturalHeight;
     const ctx=c.getContext('2d');
     const fill = bgMode==='white'?'#ffffff':bgMode==='black'?'#000000':bgColorPicker.value;
     ctx.fillStyle=fill; ctx.fillRect(0,0,c.width,c.height);
-    ctx.drawImage(img,0,0);
+    ctx.drawImage(tmp,0,0);
     resultImg.src=c.toDataURL('image/png');
     URL.revokeObjectURL(blobUrl);
   };
-  img.src=blobUrl;
+  tmp.src=blobUrl;
 }
 
-// ---- Load library lazily ----
-async function ensureLib(){
-  if(removeBackgroundFn) return;
-  // Check if model cache already has something → no notice needed
-  const cacheKeys = await caches.keys().catch(()=>[]);
-  const hasCache = cacheKeys.some(k=>k.includes('imgly'));
-  if(!hasCache) modelNotice.classList.add('show');
+// ---- Load model (lazy, cached by browser after first fetch) ----
+async function ensureModel(){
+  if(model && processor) return;
+  modelNotice.classList.add('show');
+  setProgress(5, 'Downloading RMBG model (~176 MB, cached after first use)…');
 
-  const mod = await import(LIB_URL);
-  removeBackgroundFn = mod.removeBackground ?? mod.default;
+  // RMBG-1.4 needs a custom config so model_type is recognised
+  model = await AutoModel.from_pretrained(MODEL_ID, {
+    config: { model_type: 'custom' },
+    progress_callback(p){
+      if(p.status==='progress' && p.total){
+        const pct = 5 + (p.loaded/p.total)*55;
+        setProgress(pct, `Downloading model… ${(p.loaded/1e6).toFixed(0)} / ${(p.total/1e6).toFixed(0)} MB`);
+      }
+    }
+  });
+
+  processor = await AutoProcessor.from_pretrained(MODEL_ID, {
+    config: {
+      do_normalize: true,
+      do_pad: false,
+      do_rescale: true,
+      do_resize: true,
+      image_mean: [0.5, 0.5, 0.5],
+      image_std:  [1,   1,   1  ],
+      resample: 2,
+      rescale_factor: 1/255,
+      size: { width: 1024, height: 1024 },
+      feature_extractor_type: 'ImageFeatureExtractor',
+    }
+  });
+
   modelNotice.classList.remove('show');
 }
 
-// ---- Process image ----
+// ---- Core: run RMBG-1.4, apply mask, return Blob ----
+async function removeBg(imageEl, origW, origH){
+  // Convert HTMLImageElement → RawImage → tensor input
+  const rawImg = await RawImage.fromURL(imageEl.src);
+  const { pixel_values } = await processor(rawImg);
+
+  setProgress(68, 'Running AI segmentation…');
+  const { output } = await model({ input: pixel_values });
+
+  setProgress(88, 'Applying mask…');
+
+  // output[0] is a 1×1×H×W tensor of foreground probability
+  const maskTensor = output[0];
+  const [,,mH,mW] = maskTensor.dims;
+  const maskData  = maskTensor.data; // Float32Array
+
+  // Draw original image on a canvas at its natural size
+  const canvas = document.createElement('canvas');
+  canvas.width=origW; canvas.height=origH;
+  const ctx=canvas.getContext('2d');
+  ctx.drawImage(imageEl, 0, 0, origW, origH);
+  const imgData = ctx.getImageData(0, 0, origW, origH);
+  const px = imgData.data;
+
+  // Bilinear-scale the mask from (mH×mW) → (origH×origW) and apply to alpha
+  for(let y=0; y<origH; y++){
+    for(let x=0; x<origW; x++){
+      // nearest-neighbour sample from mask (fast, good enough at 1024px)
+      const my = Math.min(Math.round(y/origH*mH), mH-1);
+      const mx = Math.min(Math.round(x/origW*mW), mW-1);
+      const alpha = maskData[my*mW+mx];            // 0–1 float
+      const i = (y*origW+x)*4;
+      px[i+3] = Math.round(alpha*255);
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+
+  return new Promise(res => canvas.toBlob(res, 'image/png'));
+}
+
+// ---- Main process flow ----
 async function processFile(file){
   if(!file||!file.type.startsWith('image/')){ showToast('Please use an image file'); return; }
 
   currentFileName = (file.name||'image').replace(/\.[^/.]+$/,'');
-
-  // Show original
-  const origUrl = URL.createObjectURL(file);
-  origImg.src = origUrl;
-
-  // Start progress UI
-  progressWrap.classList.add('show');
   resultCard.classList.remove('show');
-  setProgress(0, 'Loading AI model…');
+  progressWrap.classList.add('show');
+  setProgress(0, 'Reading image…');
 
   try {
-    await ensureLib();
-    setProgress(20, 'Analysing image…');
+    // Load image into an HTMLImageElement
+    const dataUrl = await new Promise((res,rej)=>{
+      const r=new FileReader();
+      r.onload=e=>res(e.target.result);
+      r.onerror=rej;
+      r.readAsDataURL(file);
+    });
+    const imageEl = await new Promise((res,rej)=>{
+      const img=new Image();
+      img.onload=()=>res(img);
+      img.onerror=rej;
+      img.src=dataUrl;
+    });
+    origImg.src = dataUrl;
+    const origW = imageEl.naturalWidth, origH = imageEl.naturalHeight;
 
-    const config = {
-      model: 'medium',
-      output: { format: 'image/png', type: 'foreground' },
-      progress(key, current, total){
-        if(total===0) return;
-        const pct = 20 + (current/total)*75;
-        const stage = key.includes('model') ? 'Downloading model…'
-                    : key.includes('wasm')  ? 'Loading WASM…'
-                    : 'Removing background…';
-        setProgress(pct, stage);
-      }
-    };
+    // Load model (cached after first run)
+    await ensureModel();
+    setProgress(62, 'Preparing image tensor…');
 
-    resultBlob = await removeBackgroundFn(file, config);
+    resultBlob = await removeBg(imageEl, origW, origH);
     setProgress(100, 'Done!');
 
-    // Measure dimensions from blob
-    const measureUrl = URL.createObjectURL(resultBlob);
-    await new Promise(res=>{
-      const m=new Image();
-      m.onload=()=>{ resultWidth=m.naturalWidth; resultHeight=m.naturalHeight; URL.revokeObjectURL(measureUrl); res(); };
-      m.onerror=()=>{ URL.revokeObjectURL(measureUrl); res(); };
-      m.src=measureUrl;
-    });
-
-    resultText.textContent = resultWidth+'×'+resultHeight+' px · transparent PNG';
-    updateResultPreview();
+    resultText.textContent = origW+'×'+origH+' px · transparent PNG';
+    renderWithBg();
     resultCard.classList.add('show');
-    resultCard.scrollIntoView({behavior:'smooth',block:'nearest'});
+    resultCard.scrollIntoView({behavior:'smooth', block:'nearest'});
+
   } catch(err){
     showToast('Processing failed — see console');
     console.error(err);
   } finally {
-    setTimeout(()=>progressWrap.classList.remove('show'), 600);
+    setTimeout(()=>progressWrap.classList.remove('show'), 700);
   }
 }
 
@@ -440,30 +502,28 @@ window.addEventListener('paste',(e)=>{
 });
 
 // ---- Download ----
-downloadBtn.addEventListener('click',async ()=>{
+downloadBtn.addEventListener('click', async ()=>{
   if(!resultBlob) return;
-  let downloadBlob = resultBlob;
+  let dlBlob = resultBlob;
 
   if(bgMode!=='transparent'){
-    // Flatten onto chosen colour
-    const img=new Image();
-    const blobUrl=URL.createObjectURL(resultBlob);
-    downloadBlob = await new Promise(res=>{
-      img.onload=()=>{
+    const tmp=new Image(), blobUrl=URL.createObjectURL(resultBlob);
+    dlBlob = await new Promise(res=>{
+      tmp.onload=()=>{
         const c=document.createElement('canvas');
-        c.width=img.naturalWidth; c.height=img.naturalHeight;
+        c.width=tmp.naturalWidth; c.height=tmp.naturalHeight;
         const ctx=c.getContext('2d');
         const fill=bgMode==='white'?'#ffffff':bgMode==='black'?'#000000':bgColorPicker.value;
         ctx.fillStyle=fill; ctx.fillRect(0,0,c.width,c.height);
-        ctx.drawImage(img,0,0);
+        ctx.drawImage(tmp,0,0);
         c.toBlob(b=>{ URL.revokeObjectURL(blobUrl); res(b); },'image/png');
       };
-      img.src=blobUrl;
+      tmp.src=blobUrl;
     });
   }
 
   const a=document.createElement('a');
-  a.href=URL.createObjectURL(downloadBlob);
+  a.href=URL.createObjectURL(dlBlob);
   a.download=currentFileName+'_no_bg.png';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   showToast('Downloaded!');
