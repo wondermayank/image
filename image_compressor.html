@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Compressor — Reduce to 50KB, 100KB, 200KB | Wondermayank</title>
+<meta name="description" content="Reduce your image file size to under 50KB, 100KB, or 200KB — standard limits for government exam uploads. Paste, drop, or click to compress, all in your browser.">
+<link rel="icon" type="image/svg+xml" href="https://wondermayank.github.io/favicon.svg">
+<meta property="og:title" content="Image Compressor for Exam Form Uploads">
+<meta property="og:description" content="Reduce image file size to under 50KB, 100KB or 200KB — standard limits for most govt exam uploads.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Image Compressor for Exam Form Uploads">
+<meta name="twitter:description" content="Reduce image file size to under 50KB, 100KB or 200KB — standard limits for most govt exam uploads.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type":"Question","name":"How do I reduce a photo to under 50KB?","acceptedAnswer":{"@type":"Answer","text":"Use a compressor that adjusts JPEG quality automatically until the file lands at or under 50KB, since resizing dimensions alone does not control file size precisely."}},
+    {"@type":"Question","name":"Why does my exam portal reject my photo upload?","acceptedAnswer":{"@type":"Answer","text":"Most rejections happen because the file size exceeds the portal's KB limit, even when the pixel dimensions are correct. Compressing the file separately from resizing usually resolves this."}},
+    {"@type":"Question","name":"Does compressing reduce photo quality?","acceptedAnswer":{"@type":"Answer","text":"Some quality loss is unavoidable when significantly reducing file size, but for passport-style ID photos at common exam targets like 50-200KB, the loss is generally not visible at normal viewing size."}}
+  ]
+}
+</script>
+<style>
+  :root{
+    --primary:#573AFC;--primary-active:#4527E0;--primary-focus:#6B4FFF;
+    --ink:#1d1d1f;--body:#3c3c3c;--muted:#6b6b6b;--muted-soft:#9a9a9a;
+    --hairline:#e6e6e6;--hairline-strong:#cccccc;
+    --canvas:#ffffff;--canvas-parchment:#f5f5f7;--surface-card:#fafafa;
+    --on-primary:#ffffff;--success:#22c55e;--warning:#f59e0b;--error:#dc2626;
+  }
+  [data-theme="dark"]{
+    --ink:#f5f5f7;--body:#d1d1d6;--muted:#8e8e93;--muted-soft:#636366;
+    --hairline:#2c2c2e;--hairline-strong:#3a3a3c;
+    --canvas:#0e0e10;--canvas-parchment:#161618;--surface-card:#1c1c1e;
+    --primary:#9A7AFB;--primary-active:#7C5CF0;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--canvas-parchment);color:var(--ink);min-height:100vh;display:flex;flex-direction:column;align-items:center;transition:background .2s,color .2s;}
+
+  #loadScreen{position:fixed;inset:0;background:var(--canvas);z-index:999;display:flex;align-items:center;justify-content:center;transition:opacity .3s;}
+  #loadScreen svg circle{stroke:var(--primary);stroke-linecap:round;transform-origin:center;animation:spin 1.1s linear infinite;}
+  @keyframes spin{from{stroke-dashoffset:160;}to{stroke-dashoffset:0;}}
+  #loadScreen.hide{opacity:0;pointer-events:none;}
+
+  header{width:100%;max-width:760px;padding:28px 20px 8px;display:flex;align-items:center;justify-content:space-between;}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:-0.1px;}
+  .brand img{width:26px;height:26px;border-radius:6px;}
+  .theme-toggle{width:40px;height:40px;border-radius:9999px;border:1px solid var(--hairline-strong);background:var(--canvas);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .theme-toggle svg{width:18px;height:18px;stroke:var(--ink);}
+
+  main{width:100%;max-width:760px;padding:24px 20px 60px;flex:1;display:flex;flex-direction:column;align-items:center;}
+  h1{font-size:30px;font-weight:700;letter-spacing:-0.2px;margin:10px 0 6px;text-align:center;}
+  p.lead{font-size:16px;font-weight:400;color:var(--muted);text-align:center;margin:0 0 24px;max-width:520px;line-height:1.5;}
+
+  .preset-section{width:100%;margin-bottom:20px;}
+  .preset-label{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted-soft);margin-bottom:10px;}
+  .preset-grid{display:flex;flex-wrap:wrap;gap:8px;}
+  .preset-chip{padding:10px 18px;border-radius:9999px;border:1px solid var(--hairline-strong);background:var(--canvas);font-size:14px;font-weight:600;cursor:pointer;color:var(--ink);}
+  .preset-chip.active{border-color:var(--primary);background:color-mix(in srgb, var(--primary) 10%, var(--canvas));color:var(--primary);}
+
+  .dropzone{width:100%;min-height:220px;border:2px dashed var(--hairline-strong);border-radius:18px;background:var(--canvas);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;padding:28px 20px;transition:border-color .15s,background .15s,transform .1s;}
+  .dropzone:active{transform:scale(0.99);}
+  .dropzone.drag-over{border-color:var(--primary);background:color-mix(in srgb, var(--primary) 6%, var(--canvas));}
+  .dropzone svg{width:40px;height:40px;stroke:var(--primary);margin-bottom:12px;}
+  .dz-title{font-size:16px;font-weight:600;margin:0 0 6px;}
+  .dz-sub{font-size:13px;color:var(--muted);margin:0;line-height:1.5;}
+  .dz-sub kbd{font-family:inherit;background:var(--canvas-parchment);border:1px solid var(--hairline-strong);border-radius:5px;padding:1px 6px;font-size:12px;}
+  input[type="file"]{display:none;}
+
+  .editor-card{width:100%;margin-top:20px;background:var(--canvas);border:1px solid var(--hairline);border-radius:18px;padding:20px;display:none;}
+  .editor-card.show{display:block;}
+
+  .compare-row{display:flex;gap:14px;}
+  .compare-pane{flex:1;min-width:0;}
+  .compare-label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted-soft);margin-bottom:8px;text-align:center;}
+  .compare-img-wrap{width:100%;aspect-ratio:1;border-radius:12px;overflow:hidden;background:repeating-conic-gradient(#cccccc 0% 25%, var(--canvas-parchment) 0% 50%) 50% / 16px 16px;display:flex;align-items:center;justify-content:center;}
+  .compare-img-wrap img{max-width:100%;max-height:100%;object-fit:contain;}
+  .compare-size{text-align:center;font-size:13px;font-weight:700;margin-top:8px;}
+  .compare-size.before{color:var(--muted);}
+  .compare-size.after{color:var(--success);}
+
+  .kb-target-row{margin-top:20px;}
+  .kb-target-label{font-size:14px;font-weight:600;margin-bottom:10px;}
+  .kb-chip-grid{display:flex;gap:8px;flex-wrap:wrap;}
+  .kb-chip{padding:10px 16px;border-radius:9999px;border:1px solid var(--hairline-strong);background:var(--canvas);font-size:13px;font-weight:600;cursor:pointer;color:var(--ink);}
+  .kb-chip.active{border-color:var(--primary);background:color-mix(in srgb, var(--primary) 10%, var(--canvas));color:var(--primary);}
+  .kb-custom-row{display:flex;align-items:center;gap:8px;margin-top:10px;}
+  .kb-custom-row input{width:90px;height:38px;border-radius:9999px;border:1px solid var(--hairline-strong);background:var(--canvas);color:var(--ink);padding:0 14px;font-size:14px;font-family:inherit;}
+  .kb-custom-row input:focus{outline:none;border-color:var(--primary);}
+  .kb-custom-row span{font-size:13px;color:var(--muted);}
+
+  .result-bar{display:flex;justify-content:space-between;align-items:center;margin-top:18px;padding:12px 16px;background:var(--canvas-parchment);border-radius:12px;font-size:13px;}
+  .result-bar .rb-label{color:var(--muted);}
+  .result-bar .rb-value{font-weight:700;}
+  .result-bar .rb-value.ok{color:var(--success);}
+  .result-bar .rb-value.warn{color:var(--warning);}
+  .reduction-badge{display:inline-block;background:color-mix(in srgb, var(--success) 15%, transparent);color:var(--success);font-size:12px;font-weight:700;padding:3px 10px;border-radius:9999px;margin-left:8px;}
+
+  .actions{display:flex;gap:12px;margin-top:18px;flex-wrap:wrap;}
+  .btn{flex:1;min-width:140px;height:48px;border-radius:9999px;border:none;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s,background .15s;}
+  .btn:active{transform:scale(0.95);}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .btn-primary{background:var(--primary);color:var(--on-primary);}
+  .btn-primary:hover{background:var(--primary-active);}
+  .btn-secondary{background:var(--canvas);color:var(--ink);border:1px solid var(--hairline-strong);}
+  .btn svg{width:18px;height:18px;}
+
+  .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--canvas);padding:12px 20px;border-radius:9999px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  .faq-section{width:100%;margin-top:40px;}
+  .faq-title{font-size:20px;font-weight:700;margin-bottom:16px;}
+  .faq-item{background:var(--canvas);border:1px solid var(--hairline);border-radius:14px;padding:16px 18px;margin-bottom:10px;}
+  .faq-q{font-size:14px;font-weight:600;margin-bottom:6px;}
+  .faq-a{font-size:13px;color:var(--muted);line-height:1.55;margin:0;}
+
+  footer{width:100%;background:var(--canvas-parchment);padding:32px 20px 20px;margin-top:20px;}
+  .footer-inner{max-width:760px;margin:0 auto;display:flex;flex-wrap:wrap;gap:32px;justify-content:space-between;}
+  .footer-col{min-width:140px;}
+  .footer-col h4{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted-soft);margin:0 0 12px;}
+  .footer-col a{display:block;font-size:13px;color:var(--muted);text-decoration:none;margin-bottom:8px;}
+  .footer-col a:hover{color:var(--primary);}
+  .footer-bottom{max-width:760px;margin:24px auto 0;border-top:1px solid var(--hairline);padding-top:16px;font-size:12px;color:var(--muted-soft);text-align:center;}
+
+  @media (max-width:480px){
+    h1{font-size:24px;}
+    .btn{min-width:0;}
+    .footer-inner{gap:20px;}
+    .compare-row{gap:8px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="loadScreen">
+  <svg width="56" height="56" viewBox="0 0 56 56">
+    <circle cx="28" cy="28" r="24" fill="none" stroke-width="3" stroke-dasharray="151" stroke-dashoffset="0" opacity="0.15"/>
+    <circle cx="28" cy="28" r="24" fill="none" stroke-width="3" stroke-dasharray="40 151"/>
+  </svg>
+</div>
+
+<header>
+  <div class="brand"><img src="https://wondermayank.github.io/favicon.svg" alt="Wondermayank"><span>Image Compressor</span></div>
+  <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg></button>
+</header>
+
+<main>
+  <h1>Image Compressor for Exam Uploads</h1>
+  <p class="lead">Reduce your image file size to under 50KB, 100KB, or 200KB — standard limits for most government exam portals. Dimensions stay untouched, only the file size shrinks.</p>
+
+  <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload, paste, or drop your image">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    <p class="dz-title">Drop your image here</p>
+    <p class="dz-sub">or click to browse &nbsp;·&nbsp; or press <kbd>Ctrl</kbd> + <kbd>V</kbd> to paste</p>
+  </div>
+  <input type="file" id="fileInput" accept="image/*">
+
+  <div class="editor-card" id="editorCard">
+
+    <div class="compare-row">
+      <div class="compare-pane">
+        <div class="compare-label">Original</div>
+        <div class="compare-img-wrap"><img id="origImg" alt="Original"></div>
+        <div class="compare-size before" id="origSize">—</div>
+      </div>
+      <div class="compare-pane">
+        <div class="compare-label">Compressed</div>
+        <div class="compare-img-wrap"><img id="compImg" alt="Compressed"></div>
+        <div class="compare-size after" id="compSize">—</div>
+      </div>
+    </div>
+
+    <div class="kb-target-row">
+      <div class="kb-target-label">Target file size</div>
+      <div class="kb-chip-grid" id="kbChipGrid">
+        <button class="kb-chip" data-kb="20">20 KB</button>
+        <button class="kb-chip active" data-kb="50">50 KB</button>
+        <button class="kb-chip" data-kb="100">100 KB</button>
+        <button class="kb-chip" data-kb="200">200 KB</button>
+        <button class="kb-chip" data-kb="custom">Custom</button>
+      </div>
+      <div class="kb-custom-row" id="kbCustomRow" style="display:none;">
+        <input type="number" id="kbCustomInput" min="5" value="75">
+        <span>KB max</span>
+      </div>
+    </div>
+
+    <div class="result-bar">
+      <span class="rb-label">Result</span>
+      <span class="rb-value" id="resultText">—</span>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" id="clearBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Clear</button>
+      <button class="btn btn-primary" id="downloadBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download Compressed</button>
+    </div>
+  </div>
+
+  <section class="faq-section">
+    <h2 class="faq-title">Frequently asked questions</h2>
+    <div class="faq-item">
+      <p class="faq-q">How do I reduce a photo to under 50KB?</p>
+      <p class="faq-a">Use a compressor that adjusts JPEG quality automatically until the file lands at or under 50KB, since resizing dimensions alone does not control file size precisely — this tool does that adjustment for you.</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">Why does my exam portal reject my photo upload?</p>
+      <p class="faq-a">Most rejections happen because the file size exceeds the portal's KB limit, even when the pixel dimensions are correct. Compressing the file separately from resizing usually resolves this.</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">Does compressing reduce photo quality?</p>
+      <p class="faq-a">Some quality loss is unavoidable when significantly reducing file size, but for passport-style ID photos at common exam targets like 50–200KB, the loss is generally not visible at normal viewing size.</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">Will this change my photo's dimensions?</p>
+      <p class="faq-a">No — this tool only reduces file size through compression. If you also need exact pixel or mm dimensions, use the Image Resizer tool instead, or use it before compressing.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-col">
+      <h4>Thunder</h4>
+      <a href="https://commercesehoga.github.io/">ThunderStudy</a>
+      <a href="https://commercesehoga.github.io/dashboard">CBT Mock Platform</a>
+      <a href="https://thunderstudy.github.io">Free Study Material</a>
+      <a href="https://commercesehoga.github.io/help">Help / Donate</a>
+    </div>
+    <div class="footer-col">
+      <h4>wondermayank</h4>
+      <a href="https://wondermayank.indevs.in">Portfolio</a>
+      <a href="https://wondermayank.github.io/">wondermayank.github.io</a>
+      <a href="https://wondermayank.github.io/mail">Mail</a>
+      <a href="https://wondermayank.github.io/contact">Contact</a>
+    </div>
+    <div class="footer-col">
+      <h4>Legal</h4>
+      <a href="https://wondermayank.github.io/terms">Terms</a>
+      <a href="https://wondermayank.github.io/privacy">Privacy</a>
+      <a href="https://wondermayank.github.io/disclaimer">Disclaimer</a>
+    </div>
+  </div>
+  <div class="footer-bottom">© 2026 Thunder · by wondermayank</div>
+</footer>
+
+<div class="toast" id="toast">Done!</div>
+
+<script>
+(function(){
+  const loadScreen=document.getElementById('loadScreen');
+  function hideLoader(){loadScreen.classList.add('hide');setTimeout(()=>loadScreen.remove(),350);}
+  if(document.readyState==='complete') hideLoader();
+  else window.addEventListener('load',hideLoader);
+  setTimeout(hideLoader,1500);
+
+  const themeToggle=document.getElementById('themeToggle'),themeIcon=document.getElementById('themeIcon');
+  const sunPath='<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+  const moonPath='<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  function applyTheme(t){document.documentElement.setAttribute('data-theme',t);themeIcon.innerHTML=t==='dark'?sunPath:moonPath;localStorage.setItem('theme',t);}
+  applyTheme(localStorage.getItem('theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
+  themeToggle.addEventListener('click',()=>applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark'));
+
+  const dropzone=document.getElementById('dropzone'),fileInput=document.getElementById('fileInput'),editorCard=document.getElementById('editorCard'),
+        origImg=document.getElementById('origImg'),compImg=document.getElementById('compImg'),origSize=document.getElementById('origSize'),compSize=document.getElementById('compSize'),
+        kbChipGrid=document.getElementById('kbChipGrid'),kbCustomRow=document.getElementById('kbCustomRow'),kbCustomInput=document.getElementById('kbCustomInput'),
+        resultText=document.getElementById('resultText'),downloadBtn=document.getElementById('downloadBtn'),clearBtn=document.getElementById('clearBtn'),
+        toast=document.getElementById('toast');
+
+  let img=null, origBytes=0, targetKB=50, lastOutput=null;
+
+  function showToast(msg){toast.textContent=msg;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),1800);}
+  function formatBytes(b){if(b<1024)return b+' B';if(b<1024*1024)return (b/1024).toFixed(1)+' KB';return (b/(1024*1024)).toFixed(2)+' MB';}
+
+  kbChipGrid.querySelectorAll('.kb-chip').forEach(chip=>{
+    chip.addEventListener('click',()=>{
+      kbChipGrid.querySelectorAll('.kb-chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      if(chip.dataset.kb==='custom'){
+        kbCustomRow.style.display='flex';
+        targetKB=parseInt(kbCustomInput.value,10)||75;
+      } else {
+        kbCustomRow.style.display='none';
+        targetKB=parseInt(chip.dataset.kb,10);
+      }
+      scheduleCompress();
+    });
+  });
+  kbCustomInput.addEventListener('input',()=>{ targetKB=parseInt(kbCustomInput.value,10)||75; scheduleCompress(); });
+
+  function loadImageFile(file){
+    if(!file||!file.type.startsWith('image/')){showToast('Please use an image file');return;}
+    origBytes=file.size;
+    const reader=new FileReader();
+    reader.onload=(e)=>{
+      const im=new Image();
+      im.onload=()=>{
+        img=im;
+        origImg.src=e.target.result;
+        origSize.textContent=formatBytes(origBytes)+' · '+im.naturalWidth+'×'+im.naturalHeight;
+        editorCard.classList.add('show');
+        editorCard.scrollIntoView({behavior:'smooth',block:'nearest'});
+        scheduleCompress();
+      };
+      im.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function canvasToBlobSync(canvas,quality){
+    const dataUrl=canvas.toDataURL('image/jpeg',quality);
+    const bytes=Math.round((dataUrl.length-dataUrl.indexOf(',')-1)*0.75);
+    return { dataUrl, bytes };
+  }
+
+  function compressToTarget(canvas,kb){
+    const targetBytes=kb*1024;
+    let lo=0.05, hi=0.95, best=canvasToBlobSync(canvas,hi);
+    if(best.bytes<=targetBytes) return best;
+    for(let i=0;i<8;i++){
+      const mid=(lo+hi)/2;
+      const result=canvasToBlobSync(canvas,mid);
+      if(result.bytes>targetBytes){ hi=mid; } else { lo=mid; best=result; }
+    }
+    return best;
+  }
+
+  let compressTimer=null;
+  function scheduleCompress(){
+    clearTimeout(compressTimer);
+    compressTimer=setTimeout(runCompress,120);
+  }
+
+  function runCompress(){
+    if(!img) return;
+    const canvas=document.createElement('canvas');
+    canvas.width=img.naturalWidth; canvas.height=img.naturalHeight;
+    const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#FFFFFF'; ctx.fillRect(0,0,canvas.width,canvas.height); // flatten any alpha to white, since target is JPEG
+    ctx.drawImage(img,0,0);
+
+    const result=compressToTarget(canvas,targetKB);
+    lastOutput={ dataUrl:result.dataUrl, bytes:result.bytes };
+    compImg.src=result.dataUrl;
+    compSize.textContent=formatBytes(result.bytes);
+
+    const overTarget = result.bytes > targetKB*1024*1.05;
+    const reduction = origBytes>0 ? Math.round((1-result.bytes/origBytes)*100) : 0;
+    resultText.innerHTML = (overTarget
+      ? '<span class="rb-value warn">'+formatBytes(result.bytes)+' (couldn\'t fully reach target at readable quality)</span>'
+      : '<span class="rb-value ok">'+formatBytes(result.bytes)+'</span>')
+      + (reduction>0 ? '<span class="reduction-badge">-'+reduction+'%</span>' : '');
+    downloadBtn.disabled=false;
+  }
+
+  dropzone.addEventListener('click',()=>fileInput.click());
+  dropzone.addEventListener('keydown',(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();fileInput.click();}});
+  fileInput.addEventListener('change',(e)=>{if(e.target.files&&e.target.files[0])loadImageFile(e.target.files[0]);});
+
+  ['dragenter','dragover'].forEach(evt=>dropzone.addEventListener(evt,(e)=>{e.preventDefault();dropzone.classList.add('drag-over');}));
+  ['dragleave','drop'].forEach(evt=>dropzone.addEventListener(evt,(e)=>{e.preventDefault();dropzone.classList.remove('drag-over');}));
+  dropzone.addEventListener('drop',(e)=>{const file=e.dataTransfer.files&&e.dataTransfer.files[0];if(file)loadImageFile(file);});
+  ['dragover','drop'].forEach(evt=>window.addEventListener(evt,(e)=>e.preventDefault()));
+
+  window.addEventListener('paste',(e)=>{
+    const items=e.clipboardData&&e.clipboardData.items;if(!items)return;
+    for(const item of items){if(item.type.indexOf('image')!==-1){loadImageFile(item.getAsFile());break;}}
+  });
+
+  downloadBtn.addEventListener('click',()=>{
+    if(!lastOutput)return;
+    const a=document.createElement('a');
+    a.href=lastOutput.dataUrl;
+    a.download='compressed_'+targetKB+'kb.jpg';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    showToast('Downloaded — '+formatBytes(lastOutput.bytes));
+  });
+
+  clearBtn.addEventListener('click',()=>{
+    img=null; lastOutput=null; origBytes=0;
+    editorCard.classList.remove('show');
+    origImg.src=''; compImg.src='';
+    fileInput.value='';
+  });
+})();
+</script>
+</body>
+</html>
