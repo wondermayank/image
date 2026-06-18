@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Image Upscaler — 2× & 4× with ESRGAN, Free & Private | Wondermayank</title>
+<meta name="description" content="Upscale images 2× or 4× with AI in your browser. Powered by ESRGAN — the same model behind Upscayl. No uploads, no API key, runs locally on your device.">
+<link rel="icon" type="image/svg+xml" href="https://wondermayank.github.io/favicon.svg">
+<meta property="og:title" content="AI Image Upscaler — 2× & 4×">
+<meta property="og:description" content="Upscale any image 2× or 4× with ESRGAN AI. Runs privately in your browser — no uploads, no account.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="AI Image Upscaler — 2× & 4×">
+<meta name="twitter:description" content="Upscale any image 2× or 4× with ESRGAN AI. Runs privately in your browser — no uploads, no account.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type":"Question","name":"Does this upscaler upload my image to a server?","acceptedAnswer":{"@type":"Answer","text":"No. The ESRGAN AI model runs entirely inside your browser using TensorFlow.js. Your image never leaves your device — all processing is local and private."}},
+    {"@type":"Question","name":"What is ESRGAN and why is it better than regular upscaling?","acceptedAnswer":{"@type":"Answer","text":"ESRGAN (Enhanced Super-Resolution GAN) is a neural network trained to reconstruct fine detail when enlarging images. Unlike bicubic or Lanczos resampling, it adds realistic texture rather than just blurring the image."}},
+    {"@type":"Question","name":"What is the difference between 2× and 4× upscale?","acceptedAnswer":{"@type":"Answer","text":"2× doubles the image dimensions — a 500×500px image becomes 1000×1000px. 4× quadruples them. 4× uses a heavier model and takes longer, but produces sharper detail reconstruction on very small inputs."}},
+    {"@type":"Question","name":"Why is the first run slower?","acceptedAnswer":{"@type":"Answer","text":"On first use the AI model (~15–35 MB) is downloaded and cached in your browser. TensorFlow.js also needs one warm-up pass before reaching full inference speed. Subsequent runs are much faster."}},
+    {"@type":"Question","name":"What image formats and sizes are supported?","acceptedAnswer":{"@type":"Answer","text":"JPEG, PNG, and WebP are accepted. For best results keep the input under 800px on the longest side. Very large inputs may be slow or cause memory errors on mid-range devices."}}
+  ]
+}
+</script>
+<style>
+  :root{
+    --primary:#573AFC;--primary-active:#4527E0;--primary-focus:#6B4FFF;
+    --ink:#1d1d1f;--body:#3c3c3c;--muted:#6b6b6b;--muted-soft:#9a9a9a;
+    --hairline:#e6e6e6;--hairline-strong:#cccccc;
+    --canvas:#ffffff;--canvas-parchment:#f5f5f7;--surface-card:#fafafa;
+    --on-primary:#ffffff;--success:#22c55e;--warning:#f59e0b;--error:#dc2626;
+  }
+  [data-theme="dark"]{
+    --ink:#f5f5f7;--body:#d1d1d6;--muted:#8e8e93;--muted-soft:#636366;
+    --hairline:#2c2c2e;--hairline-strong:#3a3a3c;
+    --canvas:#0e0e10;--canvas-parchment:#161618;--surface-card:#1c1c1e;
+    --primary:#9A7AFB;--primary-active:#7C5CF0;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--canvas-parchment);color:var(--ink);min-height:100vh;display:flex;flex-direction:column;align-items:center;transition:background .2s,color .2s;}
+
+  /* ---- Loader ---- */
+  #loadScreen{position:fixed;inset:0;background:var(--canvas);z-index:999;display:flex;align-items:center;justify-content:center;transition:opacity .3s;}
+  #loadScreen svg circle{stroke:var(--primary);stroke-linecap:round;transform-origin:center;animation:spin 1.1s linear infinite;}
+  @keyframes spin{from{stroke-dashoffset:160;}to{stroke-dashoffset:0;}}
+  #loadScreen.hide{opacity:0;pointer-events:none;}
+
+  /* ---- Header ---- */
+  header{width:100%;max-width:760px;padding:28px 20px 8px;display:flex;align-items:center;justify-content:space-between;}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:-0.1px;}
+  .brand img{width:26px;height:26px;border-radius:6px;}
+  .theme-toggle{width:40px;height:40px;border-radius:9999px;border:1px solid var(--hairline-strong);background:var(--canvas);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .theme-toggle svg{width:18px;height:18px;stroke:var(--ink);}
+
+  /* ---- Main ---- */
+  main{width:100%;max-width:760px;padding:24px 20px 60px;flex:1;display:flex;flex-direction:column;align-items:center;}
+  h1{font-size:30px;font-weight:700;letter-spacing:-0.2px;margin:10px 0 6px;text-align:center;}
+  p.lead{font-size:16px;font-weight:400;color:var(--muted);text-align:center;margin:0 0 24px;max-width:520px;line-height:1.5;}
+
+  /* ---- AI badge ---- */
+  .ai-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:9999px;background:color-mix(in srgb,var(--primary) 10%,var(--canvas));border:1px solid color-mix(in srgb,var(--primary) 30%,transparent);color:var(--primary);font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:20px;}
+  .ai-badge svg{width:14px;height:14px;}
+
+  /* ---- Scale row ---- */
+  .scale-row{display:flex;gap:8px;width:100%;margin-bottom:20px;}
+  .scale-btn{flex:1;padding:14px;border-radius:14px;border:1px solid var(--hairline-strong);background:var(--canvas);font-size:14px;font-weight:600;cursor:pointer;color:var(--ink);display:flex;align-items:center;justify-content:center;gap:8px;transition:border-color .1s,background .1s,color .1s;}
+  .scale-btn .badge{font-size:11px;font-weight:700;padding:2px 7px;border-radius:9999px;background:var(--canvas-parchment);color:var(--muted);}
+  .scale-btn.active{border-color:var(--primary);background:color-mix(in srgb,var(--primary) 10%,var(--canvas));color:var(--primary);}
+  .scale-btn.active .badge{background:color-mix(in srgb,var(--primary) 15%,var(--canvas));color:var(--primary);}
+
+  /* ---- Dropzone ---- */
+  .dropzone{width:100%;min-height:220px;border:2px dashed var(--hairline-strong);border-radius:18px;background:var(--canvas);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;padding:28px 20px;transition:border-color .15s,background .15s,transform .1s;}
+  .dropzone:active{transform:scale(0.99);}
+  .dropzone.drag-over{border-color:var(--primary);background:color-mix(in srgb,var(--primary) 6%,var(--canvas));}
+  .dropzone svg{width:40px;height:40px;stroke:var(--primary);margin-bottom:12px;}
+  .dz-title{font-size:16px;font-weight:600;margin:0 0 6px;}
+  .dz-sub{font-size:13px;color:var(--muted);margin:0;line-height:1.5;}
+  .dz-sub kbd{font-family:inherit;background:var(--canvas-parchment);border:1px solid var(--hairline-strong);border-radius:5px;padding:1px 6px;font-size:12px;}
+  input[type="file"]{display:none;}
+
+  /* ---- Model notice ---- */
+  .model-notice{width:100%;margin-top:16px;padding:12px 16px;background:color-mix(in srgb,var(--primary) 7%,var(--canvas));border:1px solid color-mix(in srgb,var(--primary) 20%,transparent);border-radius:12px;font-size:13px;color:var(--muted);display:none;}
+  .model-notice.show{display:block;}
+  .model-notice strong{color:var(--primary);}
+
+  /* ---- Progress ---- */
+  .progress-wrap{width:100%;margin-top:16px;display:none;}
+  .progress-wrap.show{display:block;}
+  .progress-label{font-size:13px;font-weight:600;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between;}
+  .progress-bar{width:100%;height:6px;background:var(--hairline);border-radius:9999px;overflow:hidden;}
+  .progress-fill{height:100%;background:var(--primary);border-radius:9999px;width:0%;transition:width .25s;}
+
+  /* ---- Result card ---- */
+  .result-card{width:100%;margin-top:20px;background:var(--canvas);border:1px solid var(--hairline);border-radius:18px;padding:20px;display:none;}
+  .result-card.show{display:block;}
+
+  /* Compare */
+  .compare-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+  .compare-panel{border-radius:14px;overflow:hidden;border:1px solid var(--hairline);}
+  .compare-panel .cp-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted-soft);padding:8px 12px;background:var(--canvas-parchment);}
+  .compare-panel img{width:100%;display:block;object-fit:contain;max-height:280px;background:var(--canvas-parchment);}
+
+  /* Stats bar */
+  .stats-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+  .stat-chip{flex:1;min-width:120px;padding:10px 14px;background:var(--canvas-parchment);border-radius:12px;font-size:12px;}
+  .stat-chip .sc-label{color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;}
+  .stat-chip .sc-value{font-size:15px;font-weight:700;color:var(--ink);}
+
+  /* Actions */
+  .actions{display:flex;gap:12px;flex-wrap:wrap;}
+  .btn{flex:1;min-width:140px;height:48px;border-radius:9999px;border:none;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s,background .15s;}
+  .btn:active{transform:scale(0.95);}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .btn-primary{background:var(--primary);color:var(--on-primary);}
+  .btn-primary:hover:not(:disabled){background:var(--primary-active);}
+  .btn-secondary{background:var(--canvas);color:var(--ink);border:1px solid var(--hairline-strong);}
+  .btn svg{width:18px;height:18px;}
+
+  /* Toast */
+  .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--canvas);padding:12px 20px;border-radius:9999px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  /* FAQ */
+  .faq-section{width:100%;margin-top:40px;}
+  .faq-title{font-size:20px;font-weight:700;margin-bottom:16px;}
+  .faq-item{background:var(--canvas);border:1px solid var(--hairline);border-radius:14px;padding:16px 18px;margin-bottom:10px;}
+  .faq-q{font-size:14px;font-weight:600;margin-bottom:6px;}
+  .faq-a{font-size:13px;color:var(--muted);line-height:1.55;margin:0;}
+
+  /* Footer */
+  footer{width:100%;background:var(--canvas-parchment);padding:32px 20px 20px;margin-top:20px;}
+  .footer-inner{max-width:760px;margin:0 auto;display:flex;flex-wrap:wrap;gap:32px;justify-content:space-between;}
+  .footer-col{min-width:140px;}
+  .footer-col h4{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted-soft);margin:0 0 12px;}
+  .footer-col a{display:block;font-size:13px;color:var(--muted);text-decoration:none;margin-bottom:8px;}
+  .footer-col a:hover{color:var(--primary);}
+  .footer-bottom{max-width:760px;margin:24px auto 0;border-top:1px solid var(--hairline);padding-top:16px;font-size:12px;color:var(--muted-soft);text-align:center;}
+
+  @media(max-width:520px){
+    h1{font-size:24px;}
+    .btn{min-width:0;}
+    .compare-row{grid-template-columns:1fr;}
+    .footer-inner{gap:20px;}
+    .scale-row{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+
+<div id="loadScreen">
+  <svg width="56" height="56" viewBox="0 0 56 56">
+    <circle cx="28" cy="28" r="24" fill="none" stroke-width="3" stroke-dasharray="151" stroke-dashoffset="0" opacity="0.15"/>
+    <circle cx="28" cy="28" r="24" fill="none" stroke-width="3" stroke-dasharray="40 151"/>
+  </svg>
+</div>
+
+<header>
+  <div class="brand"><img src="https://wondermayank.github.io/favicon.svg" alt="Wondermayank"><span>Image Upscaler</span></div>
+  <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg></button>
+</header>
+
+<main>
+  <h1>AI Image Upscaler</h1>
+  <p class="lead">Upscale photos 2× or 4× with ESRGAN — the same AI behind Upscayl. Runs entirely in your browser, no uploads, no account.</p>
+
+  <div class="ai-badge">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    ESRGAN — runs locally, zero uploads
+  </div>
+
+  <!-- Scale selector -->
+  <div class="scale-row" id="scaleRow">
+    <button class="scale-btn" data-scale="2">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+      2× Upscale
+      <span class="badge">Faster</span>
+    </button>
+    <button class="scale-btn active" data-scale="4">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+      4× Upscale
+      <span class="badge">Best quality</span>
+    </button>
+  </div>
+
+  <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload, paste, or drop your image">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    <p class="dz-title">Drop your image here</p>
+    <p class="dz-sub">or click to browse &nbsp;·&nbsp; or press <kbd>Ctrl</kbd> + <kbd>V</kbd> to paste</p>
+  </div>
+  <input type="file" id="fileInput" accept="image/*">
+
+  <div class="model-notice" id="modelNotice">
+    <strong>Downloading AI model:</strong> The ESRGAN model (~15–35 MB) is being fetched and will be cached for instant offline use after this.
+  </div>
+
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-label"><span id="progressLabel">Loading…</span><span id="progressPct">0%</span></div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <div class="result-card" id="resultCard">
+    <div class="compare-row">
+      <div class="compare-panel">
+        <div class="cp-label">Original</div>
+        <img id="origImg" alt="Original image">
+      </div>
+      <div class="compare-panel">
+        <div class="cp-label" id="resultLabel">Upscaled 4×</div>
+        <img id="resultImg" alt="Upscaled image">
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-chip"><div class="sc-label">Input</div><div class="sc-value" id="statInput">—</div></div>
+      <div class="stat-chip"><div class="sc-label">Output</div><div class="sc-value" id="statOutput">—</div></div>
+      <div class="stat-chip"><div class="sc-label">Scale</div><div class="sc-value" id="statScale">—</div></div>
+      <div class="stat-chip"><div class="sc-label">Time</div><div class="sc-value" id="statTime">—</div></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" id="clearBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Clear
+      </button>
+      <button class="btn btn-primary" id="downloadBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download PNG
+      </button>
+    </div>
+  </div>
+
+  <section class="faq-section">
+    <h2 class="faq-title">Frequently asked questions</h2>
+    <div class="faq-item">
+      <p class="faq-q">Does this upscaler upload my image to a server?</p>
+      <p class="faq-a">No. The ESRGAN AI model runs entirely inside your browser using TensorFlow.js. Your image never leaves your device — all processing is fully local and private.</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">What is ESRGAN and why is it better than regular upscaling?</p>
+      <p class="faq-a">ESRGAN (Enhanced Super-Resolution GAN) is a neural network trained to reconstruct realistic fine detail when enlarging images. Unlike bicubic or Lanczos resampling, which just blur the image, ESRGAN hallucinates plausible texture and sharpness — the same model powering the desktop app Upscayl.</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">What is the difference between 2× and 4× upscale?</p>
+      <p class="faq-a">2× doubles image dimensions — a 500×500 px image becomes 1000×1000 px. 4× quadruples them. 4× uses a heavier model and takes longer, but produces sharper detail reconstruction, especially useful for very small inputs.</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">Why is the first run slower?</p>
+      <p class="faq-a">On first use, the AI model (~15–35 MB) is downloaded and cached in your browser. TensorFlow.js also needs one warm-up inference pass before reaching full speed. All subsequent runs are significantly faster.</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">What image formats and sizes are supported?</p>
+      <p class="faq-a">JPEG, PNG, and WebP are accepted. For best results, keep the input under 800 px on the longest side — very large inputs may be slow or trigger memory errors on mid-range devices.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-col">
+      <h4>Thunder</h4>
+      <a href="https://commercesehoga.github.io/">ThunderStudy</a>
+      <a href="https://commercesehoga.github.io/dashboard">CBT Mock Platform</a>
+      <a href="https://thunderstudy.github.io">Free Study Material</a>
+      <a href="https://commercesehoga.github.io/help">Help / Donate</a>
+    </div>
+    <div class="footer-col">
+      <h4>wondermayank</h4>
+      <a href="https://wondermayank.indevs.in">Portfolio</a>
+      <a href="https://wondermayank.github.io/">wondermayank.github.io</a>
+      <a href="https://wondermayank.github.io/mail">Mail</a>
+      <a href="https://wondermayank.github.io/contact">Contact</a>
+    </div>
+    <div class="footer-col">
+      <h4>Legal</h4>
+      <a href="https://wondermayank.github.io/terms">Terms</a>
+      <a href="https://wondermayank.github.io/privacy">Privacy</a>
+      <a href="https://wondermayank.github.io/disclaimer">Disclaimer</a>
+    </div>
+  </div>
+  <div class="footer-bottom">© 2026 Thunder · by wondermayank</div>
+</footer>
+
+<div class="toast" id="toast">Done!</div>
+
+<!-- TensorFlow.js + UpscalerJS (UMD — no build step needed) -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@upscalerjs/esrgan-thick@latest/dist/umd/2x.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@upscalerjs/esrgan-thick@latest/dist/umd/4x.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/upscaler@latest/dist/browser/umd/upscaler.min.js"></script>
+
+<script>
+(function(){
+  // ---- Loader ----
+  const loadScreen = document.getElementById('loadScreen');
+  function hideLoader(){ loadScreen.classList.add('hide'); setTimeout(()=>loadScreen.remove(),350); }
+  if(document.readyState==='complete') hideLoader();
+  else window.addEventListener('load', hideLoader);
+  setTimeout(hideLoader, 1500);
+
+  // ---- Theme ----
+  const themeToggle=document.getElementById('themeToggle'), themeIcon=document.getElementById('themeIcon');
+  const sunPath='<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+  const moonPath='<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  function applyTheme(t){ document.documentElement.setAttribute('data-theme',t); themeIcon.innerHTML=t==='dark'?sunPath:moonPath; localStorage.setItem('theme',t); }
+  applyTheme(localStorage.getItem('theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'));
+  themeToggle.addEventListener('click',()=>applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark'));
+
+  // ---- Elements ----
+  const dropzone      = document.getElementById('dropzone');
+  const fileInput     = document.getElementById('fileInput');
+  const scaleRow      = document.getElementById('scaleRow');
+  const resultCard    = document.getElementById('resultCard');
+  const origImg       = document.getElementById('origImg');
+  const resultImg     = document.getElementById('resultImg');
+  const resultLabel   = document.getElementById('resultLabel');
+  const progressWrap  = document.getElementById('progressWrap');
+  const progressLabel = document.getElementById('progressLabel');
+  const progressPct   = document.getElementById('progressPct');
+  const progressFill  = document.getElementById('progressFill');
+  const modelNotice   = document.getElementById('modelNotice');
+  const clearBtn      = document.getElementById('clearBtn');
+  const downloadBtn   = document.getElementById('downloadBtn');
+  const statInput     = document.getElementById('statInput');
+  const statOutput    = document.getElementById('statOutput');
+  const statScale     = document.getElementById('statScale');
+  const statTime      = document.getElementById('statTime');
+  const toast         = document.getElementById('toast');
+
+  let selectedScale = 4;
+  let upscalerCache = {};   // { 2: Upscaler, 4: Upscaler }
+  let currentResultSrc = null;
+  let currentFileName = 'image';
+  let currentInputImg = null;
+
+  function showToast(msg){ toast.textContent=msg; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),1800); }
+
+  function setProgress(pct, label){
+    progressFill.style.width = Math.min(pct,100)+'%';
+    progressLabel.textContent = label;
+    progressPct.textContent   = Math.round(Math.min(pct,100))+'%';
+  }
+
+  // ---- Scale toggle ----
+  scaleRow.querySelectorAll('.scale-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      scaleRow.querySelectorAll('.scale-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedScale = parseInt(btn.dataset.scale, 10);
+    });
+  });
+
+  // ---- Get or create upscaler for chosen scale ----
+  function getUpscaler(scale){
+    if(upscalerCache[scale]) return upscalerCache[scale];
+
+    // ESRGANThick global is set by the UMD scripts loaded above
+    const modelMap = {
+      2: (typeof ESRGANThick !== 'undefined') ? ESRGANThick.x2 : null,
+      4: (typeof ESRGANThick !== 'undefined') ? ESRGANThick.x4 : null,
+    };
+
+    const model = modelMap[scale];
+    if(!model) throw new Error('ESRGAN model not loaded yet. Ensure the script tags loaded.');
+
+    upscalerCache[scale] = new Upscaler({ model });
+    return upscalerCache[scale];
+  }
+
+  // ---- Process image ----
+  async function processImage(imgEl, scale){
+    progressWrap.classList.add('show');
+    resultCard.classList.remove('show');
+    setProgress(5, 'Initialising AI…');
+
+    // Show model notice on first use if tf just loaded
+    const isWarmCache = !!upscalerCache[scale];
+    if(!isWarmCache) modelNotice.classList.add('show');
+
+    const t0 = performance.now();
+
+    try {
+      setProgress(15, 'Loading model…');
+      const upscaler = getUpscaler(scale);
+
+      setProgress(30, 'Warming up…');
+
+      // Simulate warm-up progress tick
+      let progVal = 30;
+      const ticker = setInterval(()=>{
+        progVal = Math.min(progVal+2, 85);
+        setProgress(progVal, 'Upscaling with ESRGAN…');
+      }, 400);
+
+      const result = await upscaler.upscale(imgEl, {
+        output: 'base64',
+        type: 'image/png',
+      });
+
+      clearInterval(ticker);
+      modelNotice.classList.remove('show');
+
+      const elapsed = ((performance.now()-t0)/1000).toFixed(1)+'s';
+      setProgress(100, 'Done!');
+
+      // Measure result dimensions
+      const outImg = new Image();
+      outImg.onload = () => {
+        resultLabel.textContent = `Upscaled ${scale}×`;
+        resultImg.src = result;
+        currentResultSrc = result;
+
+        statInput.textContent  = imgEl.naturalWidth+'×'+imgEl.naturalHeight;
+        statOutput.textContent = outImg.naturalWidth+'×'+outImg.naturalHeight;
+        statScale.textContent  = scale+'×';
+        statTime.textContent   = elapsed;
+
+        resultCard.classList.add('show');
+        resultCard.scrollIntoView({behavior:'smooth',block:'nearest'});
+      };
+      outImg.src = result;
+
+    } catch(err){
+      modelNotice.classList.remove('show');
+      showToast('Upscaling failed — see console');
+      console.error(err);
+    } finally {
+      setTimeout(()=>progressWrap.classList.remove('show'), 700);
+    }
+  }
+
+  // ---- Load image from file ----
+  function loadFile(file){
+    if(!file||!file.type.startsWith('image/')){ showToast('Please use an image file'); return; }
+    currentFileName = (file.name||'image').replace(/\.[^/.]+$/, '');
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        currentInputImg = img;
+        origImg.src = e.target.result;
+        processImage(img, selectedScale);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ---- Drop / paste / click ----
+  dropzone.addEventListener('click', ()=>fileInput.click());
+  dropzone.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); fileInput.click(); } });
+  fileInput.addEventListener('change', e=>{ if(e.target.files&&e.target.files[0]) loadFile(e.target.files[0]); });
+  ['dragenter','dragover'].forEach(ev=>dropzone.addEventListener(ev, e=>{ e.preventDefault(); dropzone.classList.add('drag-over'); }));
+  ['dragleave','drop'].forEach(ev=>dropzone.addEventListener(ev, e=>{ e.preventDefault(); dropzone.classList.remove('drag-over'); }));
+  dropzone.addEventListener('drop', e=>{ const f=e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) loadFile(f); });
+  ['dragover','drop'].forEach(ev=>window.addEventListener(ev, e=>e.preventDefault()));
+  window.addEventListener('paste', e=>{
+    const items=e.clipboardData&&e.clipboardData.items; if(!items) return;
+    for(const item of items){ if(item.type.indexOf('image')!==-1){ loadFile(item.getAsFile()); break; } }
+  });
+
+  // ---- Download ----
+  downloadBtn.addEventListener('click', ()=>{
+    if(!currentResultSrc) return;
+    const a = document.createElement('a');
+    a.href = currentResultSrc;
+    a.download = currentFileName+'_'+selectedScale+'x_upscaled.png';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    showToast('Downloaded!');
+  });
+
+  // ---- Clear ----
+  clearBtn.addEventListener('click', ()=>{
+    currentResultSrc = null; currentInputImg = null;
+    resultCard.classList.remove('show');
+    origImg.src=''; resultImg.src='';
+    fileInput.value='';
+  });
+})();
+</script>
+</body>
+</html>
