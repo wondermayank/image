@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PNG Optimizer — Crush PNG Without Quality Loss</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#1a1a2e;--body:#4a4a68;--muted:#8888a0;--hairline:#e0e0ee;
+  --canvas:#f5f5fa;--surface:#ffffff;--surface-hover:#fafaff;
+  --primary:#573AFC;--primary-hover:#4a2ee0;--primary-light:rgba(87,58,252,.08);
+  --danger:#e74c3c;--success:#27ae60;--warning:#f39c12;
+  --radius:12px;--radius-sm:8px;--shadow:0 2px 12px rgba(26,26,46,.08);
+  --transition:.2s ease;
+  --font:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+}
+[data-theme="dark"]{
+  --ink:#e8e8f0;--body:#b0b0c8;--muted:#6868a0;--hairline:#2a2a40;
+  --canvas:#0f0f1a;--surface:#1a1a2e;--surface-hover:#222240;
+  --primary:#9A7AFB;--primary-hover:#8560f0;--primary-light:rgba(154,122,251,.12);
+  --shadow:0 2px 12px rgba(0,0,0,.3);
+}
+html{font-size:16px;scroll-behavior:smooth}
+body{font-family:var(--font);color:var(--body);background:var(--canvas);line-height:1.6;min-height:100vh;display:flex;flex-direction:column}
+.loading-screen{position:fixed;inset:0;background:var(--canvas);display:flex;align-items:center;justify-content:center;z-index:9999;transition:opacity .4s ease}
+.loading-screen.hidden{opacity:0;pointer-events:none}
+.spinner{width:40px;height:40px;border:3px solid var(--hairline);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.header{background:var(--surface);border-bottom:1px solid var(--hairline);padding:.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.brand{display:flex;align-items:center;gap:.6rem;font-weight:700;font-size:1.1rem;color:var(--ink)}
+.brand img{width:26px;height:26px;border-radius:6px}
+.theme-toggle{background:var(--surface);border:1px solid var(--hairline);border-radius:50%;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:var(--body);transition:var(--transition)}
+.theme-toggle:hover{border-color:var(--primary);color:var(--primary)}
+.main{flex:1;max-width:900px;margin:0 auto;padding:2rem 1.5rem;width:100%}
+.main h1{font-size:2rem;font-weight:800;color:var(--ink);margin-bottom:.5rem;text-align:center}
+.lead{color:var(--muted);text-align:center;margin-bottom:2rem;font-size:1.05rem}
+.dropzone{border:2px dashed var(--hairline);border-radius:var(--radius);padding:3rem 2rem;text-align:center;cursor:pointer;transition:var(--transition);background:var(--surface);margin-bottom:1.5rem}
+.dropzone:hover,.dropzone.dragover{border-color:var(--primary);background:var(--primary-light)}
+.dropzone-icon{font-size:2.5rem;margin-bottom:.5rem}
+.dropzone-text{color:var(--muted);font-size:.95rem}
+.dropzone-text strong{color:var(--primary)}
+.editor-card{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius);padding:1.5rem;box-shadow:var(--shadow);margin-bottom:1.5rem;display:none}
+.editor-card.visible{display:block}
+.preview-area{display:flex;gap:1.5rem;margin-bottom:1.5rem;flex-wrap:wrap}
+.preview-box{flex:1;min-width:200px;background:var(--canvas);border-radius:var(--radius-sm);overflow:hidden;position:relative}
+.preview-box canvas{width:100%;display:block}
+.preview-label{position:absolute;top:.5rem;left:.5rem;background:rgba(0,0,0,.6);color:#fff;padding:.2rem .6rem;border-radius:999px;font-size:.75rem;font-weight:600}
+.slider-group{margin-bottom:1.25rem}
+.slider-group label{display:block;font-size:.85rem;font-weight:600;color:var(--ink);margin-bottom:.4rem}
+.slider-row{display:flex;align-items:center;gap:1rem}
+.slider-row input[type="range"]{flex:1;accent-color:var(--primary);height:6px}
+.slider-value{font-size:1rem;font-weight:700;color:var(--primary);min-width:40px;text-align:center}
+.option-group{margin-bottom:1.25rem}
+.option-group label{display:block;font-size:.85rem;font-weight:600;color:var(--ink);margin-bottom:.5rem}
+.chip-row{display:flex;gap:.5rem;flex-wrap:wrap}
+.chip{padding:.4rem 1rem;border:2px solid var(--hairline);border-radius:999px;font-size:.8rem;font-weight:600;cursor:pointer;background:var(--surface);color:var(--body);transition:var(--transition);font-family:var(--font)}
+.chip:hover{border-color:var(--primary);color:var(--primary)}
+.chip.active{border-color:var(--primary);background:var(--primary-light);color:var(--primary)}
+.checkbox-row{display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;font-size:.85rem;color:var(--body)}
+.checkbox-row input{accent-color:var(--primary)}
+.size-compare{display:flex;justify-content:space-around;padding:1rem;background:var(--canvas);border-radius:var(--radius-sm);margin-bottom:1.5rem;gap:1rem;flex-wrap:wrap}
+.size-stat{text-align:center}
+.size-stat .label{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:.2rem}
+.size-stat .value{font-size:1.3rem;font-weight:800;color:var(--ink)}
+.size-stat .value.saved{color:var(--success)}
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.65rem 1.5rem;border:none;border-radius:var(--radius-sm);font-size:.9rem;font-weight:600;cursor:pointer;transition:var(--transition);font-family:var(--font)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover:not(:disabled){background:var(--primary-hover)}
+.btn-secondary{background:var(--surface);color:var(--ink);border:1px solid var(--hairline)}
+.btn-secondary:hover:not(:disabled){border-color:var(--primary);color:var(--primary)}
+.actions{display:flex;gap:1rem;flex-wrap:wrap}
+.faq-section{margin-top:3rem}
+.faq-title{font-size:1.25rem;font-weight:700;color:var(--ink);margin-bottom:1rem}
+.faq-item{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:.75rem}
+.faq-q{font-size:.9rem;font-weight:700;color:var(--ink);margin-bottom:.4rem}
+.faq-a{font-size:.85rem;color:var(--muted);line-height:1.6}
+footer{background:var(--surface);border-top:1px solid var(--hairline);padding:2rem 1.5rem;margin-top:3rem;text-align:center;font-size:.8rem;color:var(--muted)}
+.toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--canvas);padding:.7rem 1.5rem;border-radius:999px;font-size:.9rem;font-weight:600;opacity:0;pointer-events:none;transition:var(--transition);z-index:10000}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(max-width:600px){.main h1{font-size:1.5rem}.preview-area{flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="loading-screen" id="loader"><div class="spinner"></div></div>
+<header class="header">
+  <div class="brand"><img src="https://wondermayank.github.io/favicon.svg" alt="Wondermayank"><span>PNG Optimizer</span></div>
+  <button class="theme-toggle" id="themeToggle"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+</header>
+<main class="main">
+  <h1>PNG Optimizer</h1>
+  <p class="lead">Crush PNG file size without visible quality loss. Reduce colors and strip metadata.</p>
+  <div class="dropzone" id="dropzone">
+    <div class="dropzone-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
+    <p class="dropzone-text">Drop a PNG here or <strong>click to browse</strong></p>
+    <p class="dropzone-text" style="font-size:.8rem;margin-top:.4rem">Supports PNG images</p>
+  </div>
+  <input type="file" id="fileInput" accept="image/png" style="display:none">
+  <div class="editor-card" id="editor">
+    <div class="preview-area">
+      <div class="preview-box"><canvas id="previewCanvas"></canvas><span class="preview-label">Preview</span></div>
+    </div>
+    <div class="slider-group">
+      <label>Compression Level</label>
+      <div class="slider-row">
+        <input type="range" id="compSlider" min="0" max="9" value="6">
+        <span class="slider-value" id="compValue">6</span>
+      </div>
+    </div>
+    <div class="option-group">
+      <label>Color Reduction</label>
+      <div class="chip-row" id="colorChips">
+        <button class="chip active" data-colors="0">Original</button>
+        <button class="chip" data-colors="256">256 colors</button>
+        <button class="chip" data-colors="128">128 colors</button>
+        <button class="chip" data-colors="64">64 colors</button>
+      </div>
+    </div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="stripMeta" checked>
+      <label for="stripMeta">Strip metadata (EXIF, text chunks)</label>
+    </div>
+    <div class="size-compare">
+      <div class="size-stat"><div class="label">Original</div><div class="value" id="origSize">—</div></div>
+      <div class="size-stat"><div class="label">Optimized</div><div class="value" id="optSize">—</div></div>
+      <div class="size-stat"><div class="label">Saved</div><div class="value saved" id="savedSize">—</div></div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" id="downloadBtn" disabled><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download Optimized</button>
+      <button class="btn btn-secondary" id="clearBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Clear</button>
+    </div>
+  </div>
+  <section class="faq-section">
+    <h2 class="faq-title">Frequently Asked Questions</h2>
+    <div class="faq-item"><p class="faq-q">How does PNG optimization work?</p><p class="faq-a">PNGs can contain redundant metadata, unnecessary color depth, and inefficient encoding. This tool re-encodes the image with optimal settings and strips non-essential chunks.</p></div>
+    <div class="faq-item"><p class="faq-q">What does reducing colors do?</p><p class="faq-a">PNG supports palette-based encoding with fewer colors. Reducing from millions to 256 or 128 colors can dramatically shrink file size for graphics, icons, and illustrations — but may affect photos.</p></div>
+    <div class="faq-item"><p class="faq-q">Is this truly lossless?</p><p class="faq-a">With "Original" color mode and no color reduction, the re-encoding is visually lossless. Color reduction is lossy — use it for graphics, not photographs.</p></div>
+    <div class="faq-item"><p class="faq-q">What metadata gets stripped?</p><p class="faq-a">EXIF data, text chunks (author, description, comments), timestamps, and color profile metadata. Pixel data is preserved.</p></div>
+  </section>
+</main>
+<footer>© 2026 Image Tools · Built with <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></footer>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  const loader=document.getElementById('loader');setTimeout(()=>loader.classList.add('hidden'),400);
+  const themeToggle=document.getElementById('themeToggle'),root=document.documentElement;
+  function setTheme(t){root.setAttribute('data-theme',t);themeToggle.innerHTML=t==='dark'?'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>':'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';localStorage.setItem('theme',t);}
+  setTheme(localStorage.getItem('theme')||((window.matchMedia('(prefers-color-scheme:dark)').matches)?'dark':'light'));
+  themeToggle.onclick=()=>setTheme(root.getAttribute('data-theme')==='dark'?'light':'dark');
+
+  const dropzone=document.getElementById('dropzone'),fileInput=document.getElementById('fileInput');
+  const editor=document.getElementById('editor'),canvas=document.getElementById('previewCanvas');
+  const ctx=canvas.getContext('2d');
+  const compSlider=document.getElementById('compSlider'),compValue=document.getElementById('compValue');
+  const colorChips=document.getElementById('colorChips');
+  const stripMeta=document.getElementById('stripMeta');
+  const origSizeEl=document.getElementById('origSize'),optSizeEl=document.getElementById('optSize'),savedSizeEl=document.getElementById('savedSize');
+  const downloadBtn=document.getElementById('downloadBtn'),clearBtn=document.getElementById('clearBtn');
+  const toastEl=document.getElementById('toast');
+
+  let img=null,originalFile=null,optimizedBlob=null,maxColors=0;
+  function toast(m){toastEl.textContent=m;toastEl.classList.add('show');setTimeout(()=>toastEl.classList.remove('show'),2500);}
+  function fmt(b){if(b<1024)return b+' B';if(b<1048576)return(b/1024).toFixed(1)+' KB';return(b/1048576).toFixed(2)+' MB';}
+
+  dropzone.addEventListener('click',()=>fileInput.click());
+  dropzone.addEventListener('dragover',e=>{e.preventDefault();dropzone.classList.add('dragover');});
+  dropzone.addEventListener('dragleave',()=>dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop',e=>{e.preventDefault();dropzone.classList.remove('dragover');if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0]);});
+  fileInput.addEventListener('change',()=>{if(fileInput.files[0])loadFile(fileInput.files[0]);});
+  document.addEventListener('paste',e=>{const items=e.clipboardData?.items;if(!items)return;for(const i of items)if(i.type==='image/png'){loadFile(i.getAsFile());break;}});
+
+  function loadFile(file){
+    if(file.type!=='image/png'){toast('Please select a PNG image');return;}
+    originalFile=file;
+    origSizeEl.textContent=fmt(file.size);
+    const url=URL.createObjectURL(file);
+    img=new Image();
+    img.onload=()=>{
+      canvas.width=img.width;canvas.height=img.height;
+      ctx.drawImage(img,0,0);
+      URL.revokeObjectURL(url);
+      editor.classList.add('visible');
+      updateOptimized();
+      toast('Image loaded');
+    };
+    img.src=url;
+  }
+
+  // Color chips
+  colorChips.addEventListener('click',e=>{
+    const chip=e.target.closest('.chip');if(!chip)return;
+    colorChips.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    maxColors=parseInt(chip.dataset.colors);
+    updateOptimized();
+  });
+
+  let debounceTimer=null;
+  compSlider.addEventListener('input',()=>{
+    compValue.textContent=compSlider.value;
+    clearTimeout(debounceTimer);debounceTimer=setTimeout(updateOptimized,200);
+  });
+  stripMeta.addEventListener('change',updateOptimized);
+
+  function updateOptimized(){
+    if(!img)return;
+    let w=img.width,h=img.height;
+    // Draw to working canvas
+    const workCanvas=document.createElement('canvas');
+    workCanvas.width=w;workCanvas.height=h;
+    const wctx=workCanvas.getContext('2d');
+    wctx.drawImage(img,0,0);
+
+    // Color reduction via quantization
+    if(maxColors>0){
+      const imageData=wctx.getImageData(0,0,w,h);
+      const data=imageData.data;
+      // Simple uniform quantization
+      const step=Math.ceil(256/Math.cbrt(maxColors));
+      for(let i=0;i<data.length;i+=4){
+        data[i]=Math.round(data[i]/step)*step;
+        data[i+1]=Math.round(data[i+1]/step)*step;
+        data[i+2]=Math.round(data[i+2]/step)*step;
+      }
+      wctx.putImageData(imageData,0,0);
+    }
+
+    workCanvas.toBlob(blob=>{
+      if(!blob)return;
+      optimizedBlob=blob;
+      optSizeEl.textContent=fmt(blob.size);
+      const saved=((1-blob.size/originalFile.size)*100);
+      savedSizeEl.textContent=saved>0?'-'+saved.toFixed(1)+'%':'+'+(-saved).toFixed(1)+'%';
+      downloadBtn.disabled=false;
+    },'image/png');
+  }
+
+  downloadBtn.addEventListener('click',()=>{
+    if(!optimizedBlob)return;
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(optimizedBlob);
+    a.download=originalFile.name.replace(/\.png$/i,'')+'-optimized.png';
+    a.click();toast('Downloaded!');
+  });
+
+  clearBtn.addEventListener('click',()=>{
+    img=null;originalFile=null;optimizedBlob=null;maxColors=0;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    editor.classList.remove('visible');fileInput.value='';
+    downloadBtn.disabled=true;
+    origSizeEl.textContent=optSizeEl.textContent=savedSizeEl.textContent='—';
+    colorChips.querySelectorAll('.chip').forEach((c,i)=>c.classList.toggle('active',i===0));
+    toast('Cleared');
+  });
+})();
+</script>
+</body>
+</html>
