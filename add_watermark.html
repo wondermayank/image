@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Add Watermark — Text or Image Overlay | Wondermayank</title>
+<meta name="description" content="Add a text or image watermark to any photo. Control position, opacity, size, and style. Preview live and download — no upload needed.">
+<link rel="icon" type="image/svg+xml" href="https://wondermayank.github.io/favicon.svg">
+<meta property="og:title" content="Add Watermark Tool">
+<meta property="og:description" content="Text or image watermark overlay. Live preview and download, all in your browser.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Add Watermark Tool">
+<meta name="twitter:description" content="Text or image watermark overlay. Live preview and download, all in your browser.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type":"Question","name":"Can I use my own logo as a watermark?","acceptedAnswer":{"@type":"Answer","text":"Yes. Switch to the Image tab and upload any PNG or SVG logo. It will be composited onto your photo with adjustable opacity and position."}},
+    {"@type":"Question","name":"Does the watermark reduce image quality?","acceptedAnswer":{"@type":"Answer","text":"No. The watermark is composited at full resolution. The output PNG keeps the same dimensions as your original photo."}},
+    {"@type":"Question","name":"Are my photos uploaded anywhere?","acceptedAnswer":{"@type":"Answer","text":"No. All processing happens locally in your browser using canvas. Your photos and logo never leave your device."}},
+    {"@type":"Question","name":"Can I tile the watermark across the whole image?","acceptedAnswer":{"@type":"Answer","text":"Yes. Select the Tile position option to repeat the watermark in a diagonal grid across the entire photo."}}
+  ]
+}
+</script>
+<style>
+  :root{
+    --primary:#573AFC;--primary-active:#4527E0;--primary-focus:#6B4FFF;
+    --ink:#1d1d1f;--body:#3c3c3c;--muted:#6b6b6b;--muted-soft:#9a9a9a;
+    --hairline:#e6e6e6;--hairline-strong:#cccccc;
+    --canvas:#ffffff;--canvas-parchment:#f5f5f7;--surface-card:#fafafa;
+    --on-primary:#ffffff;--success:#22c55e;--warning:#f59e0b;--error:#dc2626;
+  }
+  [data-theme="dark"]{
+    --ink:#f5f5f7;--body:#d1d1d6;--muted:#8e8e93;--muted-soft:#636366;
+    --hairline:#2c2c2e;--hairline-strong:#3a3a3c;
+    --canvas:#0e0e10;--canvas-parchment:#161618;--surface-card:#1c1c1e;
+    --primary:#9A7AFB;--primary-active:#7C5CF0;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--canvas-parchment);color:var(--ink);min-height:100vh;display:flex;flex-direction:column;align-items:center;transition:background .2s,color .2s;}
+
+  #loadScreen{position:fixed;inset:0;background:var(--canvas);z-index:999;display:flex;align-items:center;justify-content:center;transition:opacity .3s;}
+  #loadScreen svg circle{stroke:var(--primary);stroke-linecap:round;transform-origin:center;animation:spin 1.1s linear infinite;}
+  @keyframes spin{from{stroke-dashoffset:160;}to{stroke-dashoffset:0;}}
+  #loadScreen.hide{opacity:0;pointer-events:none;}
+
+  header{width:100%;max-width:760px;padding:28px 20px 8px;display:flex;align-items:center;justify-content:space-between;}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:-0.1px;}
+  .brand img{width:26px;height:26px;border-radius:6px;}
+  .theme-toggle{width:40px;height:40px;border-radius:9999px;border:1px solid var(--hairline-strong);background:var(--canvas);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .theme-toggle svg{width:18px;height:18px;stroke:var(--ink);}
+
+  main{width:100%;max-width:760px;padding:24px 20px 60px;flex:1;display:flex;flex-direction:column;align-items:center;}
+  h1{font-size:30px;font-weight:700;letter-spacing:-0.2px;margin:10px 0 6px;text-align:center;}
+  p.lead{font-size:16px;font-weight:400;color:var(--muted);text-align:center;margin:0 0 24px;max-width:520px;line-height:1.5;}
+
+  .dropzone{width:100%;min-height:220px;border:2px dashed var(--hairline-strong);border-radius:18px;background:var(--canvas);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;padding:28px 20px;transition:border-color .15s,background .15s,transform .1s;}
+  .dropzone:active{transform:scale(0.99);}
+  .dropzone.drag-over{border-color:var(--primary);background:color-mix(in srgb, var(--primary) 6%, var(--canvas));}
+  .dropzone svg{width:40px;height:40px;stroke:var(--primary);margin-bottom:12px;}
+  .dz-title{font-size:16px;font-weight:600;margin:0 0 6px;}
+  .dz-sub{font-size:13px;color:var(--muted);margin:0;line-height:1.5;}
+  .dz-sub kbd{font-family:inherit;background:var(--canvas-parchment);border:1px solid var(--hairline-strong);border-radius:5px;padding:1px 6px;font-size:12px;}
+  input[type="file"]{display:none;}
+
+  .editor-card{width:100%;margin-top:20px;background:var(--canvas);border:1px solid var(--hairline);border-radius:18px;padding:20px;display:none;}
+  .editor-card.show{display:block;}
+
+  .preview-stage{position:relative;width:100%;background:repeating-conic-gradient(#cccccc 0% 25%, var(--canvas-parchment) 0% 50%) 50% / 18px 18px;border-radius:14px;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:240px;max-height:380px;}
+  .preview-stage canvas{max-width:100%;max-height:380px;display:block;}
+
+  .mode-tabs{display:flex;gap:8px;margin-top:18px;}
+  .mode-tab{flex:1;height:38px;border-radius:9999px;border:1px solid var(--hairline-strong);background:var(--canvas);font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;transition:background .15s,color .15s,border-color .15s;}
+  .mode-tab.active{background:var(--primary);color:var(--on-primary);border-color:var(--primary);}
+
+  .ctrl-group{margin-top:18px;display:flex;flex-direction:column;gap:14px;}
+  .ctrl-row{display:flex;align-items:center;gap:12px;}
+  .ctrl-row label{font-size:13px;font-weight:600;white-space:nowrap;min-width:90px;}
+  .ctrl-row input[type="range"]{flex:1;accent-color:var(--primary);}
+  .ctrl-row input[type="text"],
+  .ctrl-row input[type="color"],
+  .ctrl-row select{font-family:inherit;font-size:13px;border:1px solid var(--hairline-strong);border-radius:8px;padding:6px 10px;background:var(--canvas);color:var(--ink);flex:1;}
+  .ctrl-row input[type="color"]{width:48px;height:34px;padding:2px 4px;flex:0 0 48px;}
+  .ctrl-row .val{font-size:13px;color:var(--muted);min-width:40px;text-align:right;font-variant-numeric:tabular-nums;}
+
+  .wm-img-upload{display:flex;align-items:center;gap:10px;flex:1;}
+  .wm-img-btn{height:34px;padding:0 14px;border-radius:8px;border:1px solid var(--hairline-strong);background:var(--canvas);color:var(--ink);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;}
+  .wm-img-name{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+  .panel{display:none;flex-direction:column;gap:14px;}
+  .panel.active{display:flex;}
+
+  .result-bar{display:flex;justify-content:space-between;align-items:center;margin-top:18px;padding:12px 16px;background:var(--canvas-parchment);border-radius:12px;font-size:13px;}
+  .result-bar .rb-label{color:var(--muted);}
+  .result-bar .rb-value{font-weight:700;color:var(--ink);}
+
+  .actions{display:flex;gap:12px;margin-top:18px;flex-wrap:wrap;}
+  .btn{flex:1;min-width:140px;height:48px;border-radius:9999px;border:none;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s,background .15s;}
+  .btn:active{transform:scale(0.95);}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .btn-primary{background:var(--primary);color:var(--on-primary);}
+  .btn-primary:hover{background:var(--primary-active);}
+  .btn-secondary{background:var(--canvas);color:var(--ink);border:1px solid var(--hairline-strong);}
+  .btn svg{width:18px;height:18px;}
+
+  .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--canvas);padding:12px 20px;border-radius:9999px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  .faq-section{width:100%;margin-top:40px;}
+  .faq-title{font-size:20px;font-weight:700;margin-bottom:16px;}
+  .faq-item{background:var(--canvas);border:1px solid var(--hairline);border-radius:14px;padding:16px 18px;margin-bottom:10px;}
+  .faq-q{font-size:14px;font-weight:600;margin-bottom:6px;}
+  .faq-a{font-size:13px;color:var(--muted);line-height:1.55;margin:0;}
+
+  footer{width:100%;background:var(--canvas-parchment);padding:32px 20px 20px;margin-top:20px;}
+  .footer-inner{max-width:760px;margin:0 auto;display:flex;flex-wrap:wrap;gap:32px;justify-content:space-between;}
+  .footer-col{min-width:140px;}
+  .footer-col h4{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted-soft);margin:0 0 12px;}
+  .footer-col a{display:block;font-size:13px;color:var(--muted);text-decoration:none;margin-bottom:8px;}
+  .footer-col a:hover{color:var(--primary);}
+  .footer-bottom{max-width:760px;margin:24px auto 0;border-top:1px solid var(--hairline);padding-top:16px;font-size:12px;color:var(--muted-soft);text-align:center;}
+
+  @media (max-width:480px){h1{font-size:24px;}.btn{min-width:0;}.footer-inner{gap:20px;}.ctrl-row label{min-width:64px;}}
+</style>
+</head>
+<body>
+
+<div id="loadScreen">
+  <svg width="56" height="56" viewBox="0 0 56 56">
+    <circle cx="28" cy="28" r="24" fill="none" stroke-width="3" stroke-dasharray="151" stroke-dashoffset="0" opacity="0.15"/>
+    <circle cx="28" cy="28" r="24" fill="none" stroke-width="3" stroke-dasharray="40 151"/>
+  </svg>
+</div>
+
+<header>
+  <div class="brand"><img src="https://wondermayank.github.io/favicon.svg" alt="Wondermayank"><span>Add Watermark</span></div>
+  <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg></button>
+</header>
+
+<main>
+  <h1>Add Watermark</h1>
+  <p class="lead">Text or image watermark overlay. Control position, opacity, and size. Preview live, then download — all in your browser.</p>
+
+  <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload, paste, or drop your photo">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    <p class="dz-title">Drop your photo here</p>
+    <p class="dz-sub">or click to browse &nbsp;·&nbsp; or press <kbd>Ctrl</kbd> + <kbd>V</kbd> to paste</p>
+  </div>
+  <input type="file" id="fileInput" accept="image/*">
+
+  <div class="editor-card" id="editorCard">
+    <div class="preview-stage">
+      <canvas id="previewCanvas"></canvas>
+    </div>
+
+    <div class="mode-tabs" id="modeTabs">
+      <button class="mode-tab active" data-mode="text">Text</button>
+      <button class="mode-tab" data-mode="image">Image / Logo</button>
+    </div>
+
+    <!-- Text panel -->
+    <div class="ctrl-group panel active" id="textPanel">
+      <div class="ctrl-row">
+        <label for="wmText">Text</label>
+        <input type="text" id="wmText" value="© wondermayank" placeholder="Your watermark text">
+      </div>
+      <div class="ctrl-row">
+        <label for="wmColor">Color</label>
+        <input type="color" id="wmColor" value="#ffffff">
+        <label for="wmPosition" style="min-width:60px;margin-left:12px;">Position</label>
+        <select id="wmPosition">
+          <option value="bottom-right">Bottom Right</option>
+          <option value="bottom-left">Bottom Left</option>
+          <option value="top-right">Top Right</option>
+          <option value="top-left">Top Left</option>
+          <option value="center">Center</option>
+          <option value="tile">Tile</option>
+        </select>
+      </div>
+      <div class="ctrl-row">
+        <label for="wmSize">Font Size</label>
+        <input type="range" id="wmSize" min="10" max="200" value="40" step="2">
+        <span class="val" id="wmSizeVal">40px</span>
+      </div>
+      <div class="ctrl-row">
+        <label for="wmOpacity">Opacity</label>
+        <input type="range" id="wmOpacity" min="0" max="100" value="60" step="1">
+        <span class="val" id="wmOpacityVal">60%</span>
+      </div>
+    </div>
+
+    <!-- Image panel -->
+    <div class="ctrl-group panel" id="imgPanel">
+      <div class="ctrl-row">
+        <label>Logo</label>
+        <div class="wm-img-upload">
+          <button class="wm-img-btn" id="logoBtn">Choose file</button>
+          <span class="wm-img-name" id="logoName">No file chosen</span>
+        </div>
+        <input type="file" id="logoInput" accept="image/*">
+      </div>
+      <div class="ctrl-row">
+        <label for="wmImgPosition">Position</label>
+        <select id="wmImgPosition">
+          <option value="bottom-right">Bottom Right</option>
+          <option value="bottom-left">Bottom Left</option>
+          <option value="top-right">Top Right</option>
+          <option value="top-left">Top Left</option>
+          <option value="center">Center</option>
+          <option value="tile">Tile</option>
+        </select>
+      </div>
+      <div class="ctrl-row">
+        <label for="wmImgSize">Size</label>
+        <input type="range" id="wmImgSize" min="5" max="80" value="20" step="1">
+        <span class="val" id="wmImgSizeVal">20%</span>
+      </div>
+      <div class="ctrl-row">
+        <label for="wmImgOpacity">Opacity</label>
+        <input type="range" id="wmImgOpacity" min="0" max="100" value="60" step="1">
+        <span class="val" id="wmImgOpacityVal">60%</span>
+      </div>
+    </div>
+
+    <div class="result-bar">
+      <span class="rb-label">Watermark</span>
+      <span class="rb-value" id="resultText">Text</span>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" id="clearBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Clear</button>
+      <button class="btn btn-primary" id="downloadBtn" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download</button>
+    </div>
+  </div>
+
+  <section class="faq-section">
+    <h2 class="faq-title">Frequently asked questions</h2>
+    <div class="faq-item">
+      <p class="faq-q">Can I use my own logo as a watermark?</p>
+      <p class="faq-a">Yes. Switch to the Image tab and upload any PNG or SVG logo. It will be composited onto your photo with adjustable opacity and position.</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">Does the watermark reduce image quality?</p>
+      <p class="faq-a">No. The watermark is composited at full resolution. The output PNG keeps the same dimensions as your original photo.</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">Are my photos uploaded anywhere?</p>
+      <p class="faq-a">No. All processing happens locally in your browser using canvas. Your photos and logo never leave your device.</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">Can I tile the watermark across the whole image?</p>
+      <p class="faq-a">Yes. Select the Tile position option to repeat the watermark in a diagonal grid across the entire photo.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-col">
+      <h4>Thunder</h4>
+      <a href="https://commercesehoga.github.io/">ThunderStudy</a>
+      <a href="https://commercesehoga.github.io/dashboard">CBT Mock Platform</a>
+      <a href="https://thunderstudy.github.io">Free Study Material</a>
+      <a href="https://commercesehoga.github.io/help">Help / Donate</a>
+    </div>
+    <div class="footer-col">
+      <h4>wondermayank</h4>
+      <a href="https://wondermayank.indevs.in">Portfolio</a>
+      <a href="https://wondermayank.github.io/">wondermayank.github.io</a>
+      <a href="https://wondermayank.github.io/mail">Mail</a>
+      <a href="https://wondermayank.github.io/contact">Contact</a>
+    </div>
+    <div class="footer-col">
+      <h4>Legal</h4>
+      <a href="https://wondermayank.github.io/terms">Terms</a>
+      <a href="https://wondermayank.github.io/privacy">Privacy</a>
+      <a href="https://wondermayank.github.io/disclaimer">Disclaimer</a>
+    </div>
+  </div>
+  <div class="footer-bottom">© 2026 Thunder · by wondermayank</div>
+</footer>
+
+<div class="toast" id="toast">Done!</div>
+
+<script>
+(function(){
+  const loadScreen=document.getElementById('loadScreen');
+  function hideLoader(){loadScreen.classList.add('hide');setTimeout(()=>loadScreen.remove(),350);}
+  if(document.readyState==='complete') hideLoader();
+  else window.addEventListener('load',hideLoader);
+  setTimeout(hideLoader,1500);
+
+  const themeToggle=document.getElementById('themeToggle'),themeIcon=document.getElementById('themeIcon');
+  const sunPath='<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+  const moonPath='<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  function applyTheme(t){document.documentElement.setAttribute('data-theme',t);themeIcon.innerHTML=t==='dark'?sunPath:moonPath;localStorage.setItem('theme',t);}
+  applyTheme(localStorage.getItem('theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
+  themeToggle.addEventListener('click',()=>applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark'));
+
+  const dropzone=document.getElementById('dropzone'),fileInput=document.getElementById('fileInput'),
+        editorCard=document.getElementById('editorCard'),previewCanvas=document.getElementById('previewCanvas'),
+        modeTabs=document.getElementById('modeTabs'),textPanel=document.getElementById('textPanel'),imgPanel=document.getElementById('imgPanel'),
+        wmText=document.getElementById('wmText'),wmColor=document.getElementById('wmColor'),
+        wmPosition=document.getElementById('wmPosition'),wmSize=document.getElementById('wmSize'),wmSizeVal=document.getElementById('wmSizeVal'),
+        wmOpacity=document.getElementById('wmOpacity'),wmOpacityVal=document.getElementById('wmOpacityVal'),
+        wmImgPosition=document.getElementById('wmImgPosition'),wmImgSize=document.getElementById('wmImgSize'),wmImgSizeVal=document.getElementById('wmImgSizeVal'),
+        wmImgOpacity=document.getElementById('wmImgOpacity'),wmImgOpacityVal=document.getElementById('wmImgOpacityVal'),
+        logoBtn=document.getElementById('logoBtn'),logoInput=document.getElementById('logoInput'),logoName=document.getElementById('logoName'),
+        resultText=document.getElementById('resultText'),downloadBtn=document.getElementById('downloadBtn'),
+        clearBtn=document.getElementById('clearBtn'),toast=document.getElementById('toast');
+
+  let img=null,currentName='image',mode='text',logoImg=null;
+
+  function showToast(msg){toast.textContent=msg;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),1800);}
+
+  modeTabs.querySelectorAll('.mode-tab').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      mode=btn.dataset.mode;
+      modeTabs.querySelectorAll('.mode-tab').forEach(b=>b.classList.toggle('active',b===btn));
+      textPanel.classList.toggle('active',mode==='text');
+      imgPanel.classList.toggle('active',mode==='image');
+      render();
+    });
+  });
+
+  logoBtn.addEventListener('click',()=>logoInput.click());
+  logoInput.addEventListener('change',(e)=>{
+    const file=e.target.files&&e.target.files[0];
+    if(!file)return;
+    logoName.textContent=file.name;
+    const reader=new FileReader();
+    reader.onload=(ev)=>{
+      const lm=new Image();lm.onload=()=>{logoImg=lm;render();};lm.src=ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  function getPosition(pos, cw, ch, wmW, wmH){
+    const pad=Math.min(cw,ch)*0.03;
+    const positions={
+      'bottom-right':{x:cw-wmW-pad, y:ch-wmH-pad},
+      'bottom-left':{x:pad, y:ch-wmH-pad},
+      'top-right':{x:cw-wmW-pad, y:pad},
+      'top-left':{x:pad, y:pad},
+      'center':{x:(cw-wmW)/2, y:(ch-wmH)/2}
+    };
+    return positions[pos]||positions['bottom-right'];
+  }
+
+  function render(){
+    if(!img)return;
+    const W=img.naturalWidth,H=img.naturalHeight;
+    previewCanvas.width=W;previewCanvas.height=H;
+    const ctx=previewCanvas.getContext('2d');
+    ctx.drawImage(img,0,0);
+
+    if(mode==='text'){
+      const text=wmText.value||'Watermark';
+      const fontSize=parseInt(wmSize.value);
+      const opacity=parseInt(wmOpacity.value)/100;
+      const color=wmColor.value;
+      const pos=wmPosition.value;
+
+      wmSizeVal.textContent=fontSize+'px';
+      wmOpacityVal.textContent=parseInt(wmOpacity.value)+'%';
+
+      ctx.save();
+      ctx.globalAlpha=opacity;
+      ctx.font='bold '+fontSize+'px Inter, system-ui, sans-serif';
+      ctx.fillStyle=color;
+      ctx.textBaseline='top';
+
+      const shadow=fontSize*0.04;
+      ctx.shadowColor='rgba(0,0,0,0.4)';
+      ctx.shadowBlur=shadow*4;
+
+      const metrics=ctx.measureText(text);
+      const tw=metrics.width, th=fontSize*1.2;
+
+      if(pos==='tile'){
+        const gap=Math.max(tw,th)*1.6;
+        ctx.rotate(-Math.PI/6);
+        for(let ty=-H;ty<W+H;ty+=gap){
+          for(let tx=-W;tx<W+H;tx+=gap){
+            ctx.fillText(text,tx,ty);
+          }
+        }
+      } else {
+        const {x,y}=getPosition(pos,W,H,tw,th);
+        ctx.fillText(text,x,y);
+      }
+      ctx.restore();
+      resultText.textContent='Text · "'+text.slice(0,20)+'"';
+    } else {
+      if(!logoImg){resultText.textContent='Image · no logo yet';downloadBtn.disabled=false;return;}
+      const sizePct=parseInt(wmImgSize.value)/100;
+      const opacity=parseInt(wmImgOpacity.value)/100;
+      const pos=wmImgPosition.value;
+
+      wmImgSizeVal.textContent=parseInt(wmImgSize.value)+'%';
+      wmImgOpacityVal.textContent=parseInt(wmImgOpacity.value)+'%';
+
+      const maxW=W*sizePct;
+      const scale=maxW/logoImg.naturalWidth;
+      const lw=logoImg.naturalWidth*scale, lh=logoImg.naturalHeight*scale;
+
+      ctx.save();
+      ctx.globalAlpha=opacity;
+
+      if(pos==='tile'){
+        const gx=lw*1.5, gy=lh*1.5;
+        for(let ty=0;ty<H;ty+=gy){
+          for(let tx=0;tx<W;tx+=gx){
+            ctx.drawImage(logoImg,tx,ty,lw,lh);
+          }
+        }
+      } else {
+        const {x,y}=getPosition(pos,W,H,lw,lh);
+        ctx.drawImage(logoImg,x,y,lw,lh);
+      }
+      ctx.restore();
+      resultText.textContent='Image logo · '+parseInt(wmImgSize.value)+'% · '+parseInt(wmImgOpacity.value)+'% opacity';
+    }
+    downloadBtn.disabled=false;
+  }
+
+  const controls=[wmText,wmColor,wmPosition,wmSize,wmOpacity,wmImgPosition,wmImgSize,wmImgOpacity];
+  controls.forEach(el=>el.addEventListener('input',render));
+
+  function loadImageFile(file){
+    if(!file||!file.type.startsWith('image/')){showToast('Please use an image file');return;}
+    currentName=(file.name||'image').replace(/\.[^/.]+$/,'');
+    const reader=new FileReader();
+    reader.onload=(e)=>{
+      const im=new Image();
+      im.onload=()=>{
+        img=im;render();
+        editorCard.classList.add('show');
+        editorCard.scrollIntoView({behavior:'smooth',block:'nearest'});
+      };
+      im.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  dropzone.addEventListener('click',()=>fileInput.click());
+  dropzone.addEventListener('keydown',(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();fileInput.click();}});
+  fileInput.addEventListener('change',(e)=>{if(e.target.files&&e.target.files[0])loadImageFile(e.target.files[0]);});
+  ['dragenter','dragover'].forEach(evt=>dropzone.addEventListener(evt,(e)=>{e.preventDefault();dropzone.classList.add('drag-over');}));
+  ['dragleave','drop'].forEach(evt=>dropzone.addEventListener(evt,(e)=>{e.preventDefault();dropzone.classList.remove('drag-over');}));
+  dropzone.addEventListener('drop',(e)=>{const file=e.dataTransfer.files&&e.dataTransfer.files[0];if(file)loadImageFile(file);});
+  ['dragover','drop'].forEach(evt=>window.addEventListener(evt,(e)=>e.preventDefault()));
+  window.addEventListener('paste',(e)=>{
+    const items=e.clipboardData&&e.clipboardData.items;if(!items)return;
+    for(const item of items){if(item.type.indexOf('image')!==-1){loadImageFile(item.getAsFile());break;}}
+  });
+
+  downloadBtn.addEventListener('click',()=>{
+    const a=document.createElement('a');a.href=previewCanvas.toDataURL('image/png');
+    a.download=currentName+'_watermarked.png';document.body.appendChild(a);a.click();document.body.removeChild(a);
+    showToast('Downloaded');
+  });
+  clearBtn.addEventListener('click',()=>{
+    img=null;editorCard.classList.remove('show');fileInput.value='';downloadBtn.disabled=true;
+  });
+})();
+</script>
+</body>
+</html>
